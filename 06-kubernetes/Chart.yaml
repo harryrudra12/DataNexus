@@ -1,0 +1,21 @@
+apiVersion: v2
+name: datanexus-api
+description: DataNexus Era 3 — open-source data fabric with blockchain-verified compliance
+type: application
+version: 1.0.0
+appVersion: "3.0.0-era3"
+keywords:
+  - data-platform
+  - hadoop
+  - hyperledger
+  - dpdp
+  - six-sigma
+home: https://datanexus.io
+sources:
+  - https://github.com/datanexus/core
+maintainers:
+  - name: DataNexus Platform Team
+    email: platform@datanexus.io
+icon: https://datanexus.io/logo.png
+annotations:
+  category: Analytics

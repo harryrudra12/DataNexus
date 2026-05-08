@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataNexus — The Data Fabric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Geist+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --navy: #0D1B3E; --navy-2: #0A1530;
+    --saffron: #FF951B; --saffron-soft: #FFB554;
+    --gold: #BA7517; --teal: #028090;
+    --green: #059669; --green-soft: #34D399;
+    --coral: #DC2626; --purple: #534AB7;
+    --paper: #FAF8F2; --off: #F4EFE2;
+    --line: rgba(13, 27, 62, 0.08);
+    --line-strong: rgba(13, 27, 62, 0.18);
+    --ink: #0D1B3E; --ink-2: #2A3658; --muted: #6B7793;
+  }
+  * { -webkit-font-smoothing: antialiased; }
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Geist', -apple-system, sans-serif;
+    margin: 0;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0;
+    background-image: radial-gradient(rgba(13, 27, 62, 0.06) 1px, transparent 1px);
+    background-size: 22px 22px;
+    pointer-events: none; z-index: 0;
+  }
+  .display { font-family: 'Fraunces', serif; font-feature-settings: "ss01"; letter-spacing: -0.02em; }
+  .mono { font-family: 'Geist Mono', monospace; }
+
+  .glass-card {
+    background: rgba(255, 253, 247, 0.78);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 0 0 1px rgba(13,27,62,0.02);
+  }
+  .ink-card { background: var(--navy); color: #F0E9D8; }
+
+  .pulse-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green-soft);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+    animation: pulse 2s infinite;
+  }
+  .pulse-dot.amber { background: var(--saffron); box-shadow: 0 0 0 0 rgba(255,149,27,0.6); }
+  .pulse-dot.red { background: var(--coral); box-shadow: 0 0 0 0 rgba(220,38,38,0.6); animation: pulse-red 2s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+    70%  { box-shadow: 0 0 0 12px rgba(52, 211, 153, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  }
+  @keyframes pulse-red {
+    0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+    70%  { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  }
+
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.4;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.18'/></svg>");
+    mix-blend-mode: multiply;
+  }
+
+  .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
+  @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(8px); } }
+
+  .stagger > * { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
+  .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.10s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.20s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.25s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.30s; }
+
+  .nav-tab {
+    padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
+  .nav-tab:hover { color: var(--ink); background: rgba(13,27,62,0.04); }
+  .nav-tab.active {
+    background: var(--ink); color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+  }
+  .badge-success { background: rgba(5, 150, 105, 0.12); color: var(--green); }
+  .badge-warn    { background: rgba(255, 149, 27, 0.12); color: var(--gold); }
+  .badge-danger  { background: rgba(220, 38, 38, 0.12); color: var(--coral); }
+  .badge-info    { background: rgba(83, 74, 183, 0.12); color: var(--purple); }
+  .badge-ink     { background: rgba(13, 27, 62, 0.08);  color: var(--ink); }
+
+  .gauge { transform: rotate(-90deg); }
+  .gauge-track { stroke: var(--line-strong); stroke-width: 6; fill: none; }
+  .gauge-fill  { stroke-width: 6; fill: none; stroke-linecap: round;
+                 transition: stroke-dashoffset 0.8s ease; }
+
+  .skeleton {
+    background: linear-gradient(90deg, rgba(13,27,62,0.06) 0%, rgba(13,27,62,0.12) 50%, rgba(13,27,62,0.06) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(13,27,62,0.45);
+    backdrop-filter: blur(4px); z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, createContext, useContext } = React;
+
+// ═══════════════════════════════════════════════════════════════
+// API CLIENT — talks to the real FastAPI service
+// ═══════════════════════════════════════════════════════════════
+
+const DEFAULT_CONFIG = {
+  apiUrl:  localStorage.getItem('dn_api_url')  || 'http://localhost:8000',
+  apiKey:  localStorage.getItem('dn_api_key')  || '',
+  token:   localStorage.getItem('dn_token')    || '',
+};
+
+class ApiClient {
+  constructor(config) {
+    this.apiUrl = config.apiUrl.replace(/\/$/, '');
+    this.apiKey = config.apiKey;
+    this.token  = config.token;
+    this.lastError = null;
+    this.online = null;
+  }
+
+  setApiUrl(url) {
+    this.apiUrl = url.replace(/\/$/, '');
+    localStorage.setItem('dn_api_url', this.apiUrl);
+  }
+  setToken(token) {
+    this.token = token;
+    if (token) localStorage.setItem('dn_token', token);
+    else localStorage.removeItem('dn_token');
+  }
+  setApiKey(key) {
+    this.apiKey = key;
+    if (key) localStorage.setItem('dn_api_key', key);
+    else localStorage.removeItem('dn_api_key');
+  }
+
+  _headers(extra = {}) {
+    const h = { 'Content-Type': 'application/json', ...extra };
+    if (this.token)  h['Authorization'] = `Bearer ${this.token}`;
+    if (this.apiKey) h['X-DataNexus-API-Key'] = this.apiKey;
+    return h;
+  }
+
+  async _request(method, path, { body, timeout = 10000 } = {}) {
+    const url = `${this.apiUrl}${path}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const resp = await fetch(url, {
+        method,
+        headers: this._headers(),
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      this.online = true;
+      this.lastError = null;
+      const text = await resp.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!resp.ok) {
+        const err = new Error(data.detail || resp.statusText);
+        err.status = resp.status;
+        err.body   = data;
+        throw err;
+      }
+      return data;
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        this.online = false;
+        this.lastError = 'Request timed out — is the API running?';
+      } else if (e.message === 'Failed to fetch') {
+        this.online = false;
+        this.lastError = `Cannot reach ${this.apiUrl} — is the API running?`;
+      } else {
+        this.lastError = e.message || String(e);
+      }
+      throw e;
+    }
+  }
+
+  // ─── Auth ──────────────────────────────────────────────
+  login(username, password) {
+    return this._request('POST', '/auth/login', { body: { username, password } });
+  }
+  me() { return this._request('GET', '/auth/me'); }
+
+  // ─── Health ────────────────────────────────────────────
+  health() { return this._request('GET', '/health', { timeout: 3000 }); }
+  ready()  { return this._request('GET', '/ready',  { timeout: 5000 }); }
+
+  // ─── Ingest ────────────────────────────────────────────
+  ingest(payload) { return this._request('POST', '/api/v1/ingest', { body: payload }); }
+
+  // ─── Lineage / Datasets ────────────────────────────────
+  getLineage(datasetId) { return this._request('GET', `/api/v1/lineage/${encodeURIComponent(datasetId)}`); }
+  getDataset(datasetId) { return this._request('GET', `/api/v1/dataset/${encodeURIComponent(datasetId)}`); }
+
+  // ─── Compliance ────────────────────────────────────────
+  borderCheck(payload) { return this._request('POST', '/api/v1/compliance/border', { body: payload }); }
+  complianceReport(datasetId) {
+    return this._request('GET', `/api/v1/compliance/report/${encodeURIComponent(datasetId)}`);
+  }
+
+  // ─── Query ─────────────────────────────────────────────
+  nlpQuery(payload) { return this._request('POST', '/api/v1/query/nlp', { body: payload }); }
+
+  // ─── Pipeline / Intent ─────────────────────────────────
+  submitIntent(payload) { return this._request('POST', '/api/v1/pipeline/intent', { body: payload }); }
+
+  // ─── Fabric ────────────────────────────────────────────
+  fabricStatus() { return this._request('GET', '/api/v1/fabric/status'); }
+}
+
+const apiClient = new ApiClient(DEFAULT_CONFIG);
+
+// ═══════════════════════════════════════════════════════════════
+// FALLBACK DATA — when the API is offline
+// ═══════════════════════════════════════════════════════════════
+const FALLBACK = {
+  pipelines: [
+    { id: 'pl-001', name: 'patient_records_apollo', sigma: 5.9, status: 'healthy',
+      laws: ['DPDP'], fabric: 'TX_91954854b09', region: 'IN-TG',
+      runs: 1247, lastRun: '2 min ago', healingRate: 88 },
+    { id: 'pl-002', name: 'sales_transactions_q4', sigma: 5.4, status: 'healthy',
+      laws: ['DPDP'], fabric: 'TX_a3c8d51fb26', region: 'IN-MH',
+      runs: 892, lastRun: '5 min ago', healingRate: 92 },
+    { id: 'pl-003', name: 'iot_factory_sensors', sigma: 4.8, status: 'warning',
+      laws: ['DPDP'], fabric: 'TX_e7f2db89c14', region: 'IN-AP',
+      runs: 4502, lastRun: '12 sec ago', healingRate: 78 },
+    { id: 'pl-004', name: 'eu_customer_profile', sigma: 5.7, status: 'healthy',
+      laws: ['GDPR'], fabric: 'TX_b6c4d92ef03', region: 'EU-DE',
+      runs: 312, lastRun: '15 min ago', healingRate: 95 },
+  ],
+  fabricStatus: {
+    fabric_id: 'datanexus-prod-01',
+    total_datasets: 7426, total_nodes: 6, online_nodes: 6,
+    avg_sigma: 5.55, total_movements: 1247,
+    nodes: [
+      { node_id: 'dn-hyderabad-01', region: 'IN-TG', node_type: 'core_cloud', online: true, items: 1247, avg_sigma: 5.9 },
+      { node_id: 'dn-mumbai-01',    region: 'IN-MH', node_type: 'core_cloud', online: true, items: 892,  avg_sigma: 5.4 },
+      { node_id: 'dn-delhi-01',     region: 'IN-DL', node_type: 'core_cloud', online: true, items: 445,  avg_sigma: 5.6 },
+      { node_id: 'dn-hospital-hyd', region: 'IN-TG', node_type: 'edge',       online: true, items: 28,   avg_sigma: 5.9 },
+      { node_id: 'dn-factory-ap',   region: 'IN-AP', node_type: 'edge_iot',   online: true, items: 4502, avg_sigma: 4.8 },
+      { node_id: 'dn-eu-frankfurt', region: 'EU-DE', node_type: 'core_cloud', online: true, items: 312,  avg_sigma: 5.7 },
+    ],
+  },
+  audit: [
+    { ts: '14:32:08', tx: 'TX_91954854b09', action: 'TRANSFORM', dataset: 'patient_records_apollo',  result: 'OK' },
+    { ts: '14:31:55', tx: 'TX_a3c8d51fb26', action: 'INGEST',    dataset: 'sales_transactions_q4',   result: 'OK' },
+    { ts: '14:31:42', tx: 'TX_e7f2db89c14', action: 'BORDER',    dataset: 'iot_factory_sensors',     result: 'BLOCKED — DPDP' },
+    { ts: '14:31:18', tx: 'TX_b6c4d92ef03', action: 'QUERY',     dataset: 'eu_customer_profile',     result: 'OK' },
+    { ts: '14:30:55', tx: 'TX_d8a1b7c4e92', action: 'AUTO-HEAL', dataset: 'iot_factory_sensors',     result: 'FIXED' },
+    { ts: '14:30:31', tx: 'TX_f2e9c8a3b71', action: 'TRANSFORM', dataset: 'patient_records_apollo',  result: 'OK' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CONTEXT
+// ═══════════════════════════════════════════════════════════════
+const AppContext = createContext(null);
+const useApp = () => useContext(AppContext);
+
+// ═══════════════════════════════════════════════════════════════
+// HOOKS
+// ═══════════════════════════════════════════════════════════════
+function useApi(fetcher, deps = []) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetcher();
+      setData(result);
+    } catch (e) {
+      setError(e.message || 'Request failed');
+    } finally {
+      setLoading(false);
+    }
+  }, deps);
+
+  useEffect(() => { reload(); }, [reload]);
+  return { data, loading, error, reload };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+const SigmaGauge = ({ value, size = 88 }) => {
+  const r = (size - 12) / 2;
+  const C = 2 * Math.PI * r;
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const pct = Math.min(safeValue / 6, 1);
+  const offset = C * (1 - pct);
+  const color = safeValue >= 5.5 ? 'var(--green)'
+              : safeValue >= 4.5 ? 'var(--saffron)'
+              : 'var(--coral)';
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="gauge" width={size} height={size}>
+        <circle cx={size/2} cy={size/2} r={r} className="gauge-track" />
+        <circle cx={size/2} cy={size/2} r={r} className="gauge-fill"
+                stroke={color} strokeDasharray={C} strokeDashoffset={offset} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="display text-2xl" style={{ color }}>{safeValue.toFixed(1)}</span>
+        <span className="mono text-[9px] tracking-widest text-[var(--muted)] uppercase">σ</span>
+      </div>
+    </div>
+  );
+};
+
+const Skeleton = ({ className = '', style = {} }) => (
+  <div className={`skeleton ${className}`} style={style}></div>
+);
+
+const ConnectionBanner = () => {
+  const { online, apiUrl, openSettings } = useApp();
+  if (online === null) return null;
+  if (online) return null;
+  return (
+    <div className="px-8 py-2 flex items-center gap-3 text-xs"
+         style={{ background: 'rgba(220,38,38,0.08)', borderBottom: '1px solid rgba(220,38,38,0.18)' }}>
+      <span className="pulse-dot red"></span>
+      <span style={{ color: 'var(--coral)', fontWeight: 500 }}>API offline</span>
+      <span style={{ color: 'var(--muted)' }}>· showing demo data · expecting {apiUrl}</span>
+      <button onClick={openSettings}
+              className="ml-auto px-3 py-1 rounded-full text-[var(--coral)]"
+              style={{ background: 'rgba(220,38,38,0.08)' }}>
+        Configure →
+      </button>
+    </div>
+  );
+};
+
+const Header = ({ tab, setTab }) => {
+  const { online, user, logout, openSettings } = useApp();
+  return (
+    <div className="px-8 pt-6 pb-4 flex items-center justify-between border-b border-[var(--line)]">
+      <div className="flex items-center gap-6">
+        <div>
+          <div className="display text-xl tracking-tight">DataNexus</div>
+          <div className="mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Era 3 · The Data Fabric</div>
+        </div>
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 border border-[var(--line)]">
+          <span className={`pulse-dot ${online === false ? 'red' : online === null ? 'amber' : ''}`}></span>
+          <span className="mono text-[11px] text-[var(--ink-2)]">
+            {online === null ? 'Connecting…' : online ? 'Fabric · operational' : 'Offline · demo mode'}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {['Overview','Pipelines','Fabric','Audit','Compliance','Query','Intent'].map(t => (
+          <div key={t} className={`nav-tab ${tab===t ? 'active' : ''}`} onClick={() => setTab(t)}>{t}</div>
+        ))}
+        <div className="w-px h-6 bg-[var(--line-strong)] mx-1"></div>
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{user.user_id}</span>
+            <button onClick={logout}
+                    className="px-3 py-1 rounded-full text-xs hover:bg-[var(--line)]">Sign out</button>
+          </div>
+        ) : null}
+        <button onClick={openSettings}
+                className="px-3 py-1.5 rounded-full text-xs hover:bg-[var(--line)]"
+                title="API settings">⚙</button>
+      </div>
+    </div>
+  );
+};
+
+const KPICard = ({ label, value, sub, accent, loading }) => (
+  <div className="glass-card rounded-2xl p-5 fade-in">
+    <div className="flex items-start justify-between mb-3">
+      <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{label}</span>
+    </div>
+    {loading ? (
+      <Skeleton style={{ width: '60%', height: 36 }} />
+    ) : (
+      <div className="display text-4xl tracking-tight" style={{ color: accent || 'var(--ink)' }}>{value}</div>
+    )}
+    {sub && <div className="text-xs text-[var(--muted)] mt-1">{sub}</div>}
+  </div>
+);
+
+// ─── Settings modal ─────────────────────────────────────────
+const SettingsModal = ({ onClose }) => {
+  const { apiUrl, setApiUrl, login, user, logout } = useApp();
+  const [draftUrl, setDraftUrl] = useState(apiUrl);
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  const save = () => {
+    setApiUrl(draftUrl);
+    onClose();
+  };
+
+  const handleLogin = async () => {
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      await login(username, password);
+      onClose();
+    } catch (e) {
+      setLoginError(e.message || 'Login failed');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-[var(--paper)] rounded-2xl p-7 max-w-md w-full mx-4 border border-[var(--line)]"
+           style={{ boxShadow: '0 20px 60px rgba(13,27,62,0.2)' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="display text-2xl">Settings</div>
+          <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--ink)] text-xl">×</button>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-1.5 block">
+              API URL
+            </label>
+            <input value={draftUrl} onChange={e => setDraftUrl(e.target.value)}
+                   placeholder="http://localhost:8000"
+                   className="w-full px-3 py-2 rounded-lg bg-white/70 border border-[var(--line)]
+                              font-mono text-xs focus:outline-none focus:border-[var(--ink)]" />
+            <div className="text-[10px] text-[var(--muted)] mt-1">
+              The FastAPI service URL. Use http://localhost:8000 for local development.
+            </div>
+          </div>
+
+          {!user && (
+            <div className="border-t border-[var(--line)] pt-5">
+              <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-3">
+                Sign in
+              </div>
+              <div className="space-y-2">
+                <input value={username} onChange={e => setUsername(e.target.value)}
+                       placeholder="Username"
+                       className="w-full px-3 py-2 rounded-lg bg-white/70 border border-[var(--line)] text-sm focus:outline-none focus:border-[var(--ink)]" />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                       placeholder="Password" onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                       className="w-full px-3 py-2 rounded-lg bg-white/70 border border-[var(--line)] text-sm focus:outline-none focus:border-[var(--ink)]" />
+                {loginError && (
+                  <div className="text-xs text-[var(--coral)] py-1">{loginError}</div>
+                )}
+                <button onClick={handleLogin} disabled={loginLoading}
+                        className="w-full mt-2 px-4 py-2 rounded-lg bg-[var(--ink)] text-[var(--paper)] text-sm font-medium hover:bg-[var(--navy-2)] disabled:opacity-50">
+                  {loginLoading ? 'Signing in…' : 'Sign in'}
+                </button>
+                <div className="text-[10px] text-[var(--muted)] mt-2">
+                  Demo: <span className="mono">admin / admin123</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {user && (
+            <div className="border-t border-[var(--line)] pt-5">
+              <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-2">Signed in as</div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-sm">{user.user_id}</div>
+                  <div className="text-xs text-[var(--muted)]">{user.tenant_id}</div>
+                </div>
+                <button onClick={() => { logout(); onClose(); }}
+                        className="px-3 py-1.5 rounded-lg border border-[var(--line)] text-xs hover:bg-[var(--line)]">
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 mt-7">
+          <button onClick={onClose}
+                  className="flex-1 px-4 py-2 rounded-lg border border-[var(--line)] text-sm hover:bg-white/60">
+            Cancel
+          </button>
+          <button onClick={save}
+                  className="flex-1 px-4 py-2 rounded-lg bg-[var(--ink)] text-[var(--paper)] text-sm font-medium hover:bg-[var(--navy-2)]">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// VIEWS
+// ═══════════════════════════════════════════════════════════════
+const Overview = () => {
+  const { api, online } = useApp();
+  const fabric = useApi(() => api.fabricStatus(), []);
+  const dataIsLive = online && fabric.data;
+  const status = dataIsLive ? fabric.data : FALLBACK.fabricStatus;
+  const pipelines = FALLBACK.pipelines;  // not yet exposed by API
+
+  return (
+    <div className="px-8 py-6 stagger">
+      <div className="grid grid-cols-12 gap-4 mb-6">
+        <div className="col-span-12 md:col-span-7 ink-card rounded-2xl p-7 relative overflow-hidden">
+          <div className="grain"></div>
+          <div className="relative">
+            <div className="badge badge-ink mb-4" style={{ background: 'rgba(255,149,27,0.15)', color: 'var(--saffron-soft)' }}>
+              <span className="pulse-dot" style={{ background: 'var(--saffron)' }}></span>
+              <span className="mono text-[10px] uppercase tracking-widest">
+                {dataIsLive ? 'Live · DPDP compliant · Blockchain verified' : 'Demo · API offline'}
+              </span>
+            </div>
+            <div className="display text-4xl md:text-5xl leading-tight mb-3">
+              The data fabric<br />
+              <span className="italic" style={{ color: 'var(--saffron)' }}>that knows itself.</span>
+            </div>
+            <div className="text-sm text-[#C4BFAF] max-w-xl leading-relaxed">
+              Every transformation cryptographically logged. Every pipeline measured to Six Sigma.
+              Every byte governed by its own laws. Running across {status.total_nodes || 6} nodes
+              in {new Set((status.nodes || []).map(n => n.region)).size || 4} regions right now.
+            </div>
+            <div className="flex items-center gap-6 mt-6">
+              <div>
+                <div className="display text-3xl">{(status.avg_sigma || 5.55).toFixed(2)}σ</div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[#9A9482]">Avg sigma</div>
+              </div>
+              <div className="h-10 w-px bg-[#3A4566]"></div>
+              <div>
+                <div className="display text-3xl">3.4</div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[#9A9482]">Defects per million</div>
+              </div>
+              <div className="h-10 w-px bg-[#3A4566]"></div>
+              <div>
+                <div className="display text-3xl">{status.total_movements || 1247}</div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[#9A9482]">Fabric movements</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-5 grid grid-cols-2 gap-4">
+          <KPICard label="Datasets"   loading={fabric.loading && online}
+                   value={(status.total_datasets || 0).toLocaleString()}
+                   sub="across fabric" accent="var(--ink)" />
+          <KPICard label="Fabric nodes" loading={fabric.loading && online}
+                   value={status.total_nodes || 0}
+                   sub={`${status.online_nodes || 0} online`} accent="var(--green)" />
+          <KPICard label="Heal rate" value="88%" sub="auto-resolved" accent="var(--purple)" />
+          <KPICard label="DPDP audit" value="60s" sub="time to proof" accent="var(--saffron)" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 md:col-span-8 glass-card rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="display text-xl">Pipelines</div>
+              <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Live sigma scores · Hyperledger verified</div>
+            </div>
+            <span className="badge badge-success"><span className="pulse-dot"></span>monitoring</span>
+          </div>
+          <div className="space-y-3">
+            {pipelines.map(p => (
+              <div key={p.id} className="flex items-center gap-4 py-3 border-t border-[var(--line)]">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-1 h-10 rounded-full"
+                       style={{ background: p.status==='healthy' ? 'var(--green)' : p.status==='warning' ? 'var(--saffron)' : 'var(--coral)' }}></div>
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{p.name}</div>
+                    <div className="mono text-[10px] text-[var(--muted)]">{p.fabric.slice(0,18)}... · {p.region}</div>
+                  </div>
+                </div>
+                <div className="hidden md:block">
+                  <span className={`badge ${p.laws[0]==='DPDP' ? 'badge-info' : 'badge-warn'}`}>{p.laws[0]}</span>
+                </div>
+                <div className="text-right min-w-[60px]">
+                  <div className="display text-lg" style={{
+                    color: p.sigma >= 5.5 ? 'var(--green)' : p.sigma >= 4.5 ? 'var(--saffron)' : 'var(--coral)'
+                  }}>{p.sigma}σ</div>
+                  <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">{p.runs} runs</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-4 glass-card rounded-2xl p-6">
+          <div className="display text-xl mb-1">Recent audit chain</div>
+          <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-4">Hyperledger Fabric · immutable</div>
+          <div className="space-y-3 max-h-[280px] overflow-y-auto scrollbar-thin">
+            {FALLBACK.audit.map((e, i) => (
+              <div key={i} className="border-l-2 pl-3 py-1"
+                   style={{ borderColor: e.result.startsWith('OK') ? 'var(--green)' :
+                                          e.result === 'FIXED' ? 'var(--purple)' : 'var(--coral)' }}>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="mono text-[10px] text-[var(--muted)]">{e.ts}</span>
+                  <span className={`mono text-[9px] font-medium ${
+                    e.result.startsWith('OK') ? 'text-[var(--green)]' :
+                    e.result === 'FIXED' ? 'text-[var(--purple)]' : 'text-[var(--coral)]'}`}>
+                    {e.result}
+                  </span>
+                </div>
+                <div className="text-xs font-medium">{e.action} · {e.dataset}</div>
+                <div className="mono text-[10px] text-[var(--muted)]">{e.tx}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Pipelines = () => (
+  <div className="px-8 py-6">
+    <div className="display text-2xl mb-1">All pipelines</div>
+    <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">{FALLBACK.pipelines.length} active · Six Sigma DMAIC enforced</div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger">
+      {FALLBACK.pipelines.map(p => (
+        <div key={p.id} className="glass-card rounded-2xl p-5">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="font-medium">{p.name}</div>
+              <div className="mono text-[10px] text-[var(--muted)] mt-0.5">{p.id} · {p.region}</div>
+            </div>
+            <SigmaGauge value={p.sigma} size={64} />
+          </div>
+          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[var(--line)]">
+            <div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Runs</div>
+              <div className="font-medium text-sm">{p.runs.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Heal rate</div>
+              <div className="font-medium text-sm" style={{ color: 'var(--purple)' }}>{p.healingRate}%</div>
+            </div>
+            <div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Last run</div>
+              <div className="font-medium text-sm">{p.lastRun}</div>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)] mb-1">Fabric tx</div>
+            <div className="mono text-[10px] text-[var(--ink-2)]">{p.fabric}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const Fabric = () => {
+  const { api, online } = useApp();
+  const { data, loading, error, reload } = useApi(() => api.fabricStatus(), [api]);
+
+  const showLive = online && data && !error;
+  const status = showLive ? data : FALLBACK.fabricStatus;
+  const nodes = status.nodes || [];
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <div className="display text-2xl mb-1">Zero gravity fabric</div>
+          <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+            Content-addressed · auto-replicating · IPFS-backed
+            {showLive && <span className="text-[var(--green)] ml-2">● live</span>}
+            {!showLive && <span className="text-[var(--saffron)] ml-2">● demo</span>}
+          </div>
+        </div>
+        <button onClick={reload}
+                className="px-3 py-1.5 rounded-full text-xs border border-[var(--line)] hover:bg-white/60">
+          ↻ Refresh
+        </button>
+      </div>
+
+      {loading && online && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[0,1,2,3,4,5].map(i => (
+            <div key={i} className="glass-card rounded-2xl p-5">
+              <Skeleton style={{ width: 80, height: 12, marginBottom: 12 }} />
+              <Skeleton style={{ width: '70%', height: 18, marginBottom: 8 }} />
+              <Skeleton style={{ width: '50%', height: 12, marginBottom: 16 }} />
+              <Skeleton style={{ height: 40 }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(!loading || !online) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger">
+          {nodes.map(n => (
+            <div key={n.node_id} className="glass-card rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`pulse-dot ${n.online ? '' : 'red'}`}></span>
+                <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{n.node_type}</span>
+              </div>
+              <div className="display text-lg mb-1">{n.node_id}</div>
+              <div className="text-xs text-[var(--muted)] mb-4">Region · {n.region}</div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="display text-3xl">{(n.items || 0).toLocaleString()}</div>
+                  <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Datasets stored</div>
+                </div>
+                <SigmaGauge value={n.avg_sigma} size={56} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AuditView = () => (
+  <div className="px-8 py-6">
+    <div className="flex items-center justify-between mb-1">
+      <div>
+        <div className="display text-2xl">Audit trail</div>
+        <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Hyperledger Fabric · cryptographically immutable</div>
+      </div>
+      <button className="px-4 py-2 rounded-full bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[var(--navy-2)]">
+        Generate compliance PDF →
+      </button>
+    </div>
+    <div className="mt-6 glass-card rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-12 gap-4 px-5 py-3 border-b border-[var(--line)] bg-white/50">
+        <div className="col-span-2 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Timestamp</div>
+        <div className="col-span-3 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Fabric TX</div>
+        <div className="col-span-2 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Action</div>
+        <div className="col-span-3 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Dataset</div>
+        <div className="col-span-2 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Result</div>
+      </div>
+      {FALLBACK.audit.map((e, i) => (
+        <div key={i} className="grid grid-cols-12 gap-4 px-5 py-3 border-b border-[var(--line)] hover:bg-white/40 fade-in"
+             style={{ animationDelay: `${i*0.05}s` }}>
+          <div className="col-span-2 mono text-xs">{e.ts}</div>
+          <div className="col-span-3 mono text-xs text-[var(--ink-2)]">{e.tx}</div>
+          <div className="col-span-2"><span className="badge badge-ink">{e.action}</span></div>
+          <div className="col-span-3 text-xs">{e.dataset}</div>
+          <div className="col-span-2">
+            <span className={`badge ${e.result.startsWith('OK') ? 'badge-success' :
+              e.result === 'FIXED' ? 'badge-info' : 'badge-danger'}`}>{e.result}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const Compliance = () => {
+  const { api, online } = useApp();
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState([]);
+  const [error, setError] = useState('');
+
+  const tests = [
+    { label: 'Apollo Hospital · IN-TG → Mumbai · IN-MH',
+      payload: { dataset_id: 'demo-patient-001', target_country: 'IN-MH', purpose: 'medical_treatment',
+                 jurisdictions: ['DPDP_2023'], classification: 'HEALTH', has_consent: true, signature_count: 3 } },
+    { label: 'Apollo Hospital · IN-TG → US pharma',
+      payload: { dataset_id: 'demo-patient-001', target_country: 'US', purpose: 'pharma_research',
+                 jurisdictions: ['DPDP_2023'], classification: 'PII', has_consent: false, signature_count: 0 } },
+    { label: 'EU customer · EU-DE → Singapore · SG',
+      payload: { dataset_id: 'demo-eu-001', target_country: 'SG', purpose: 'analytics',
+                 jurisdictions: ['GDPR'], classification: 'PII', has_consent: false, signature_count: 0 } },
+    { label: 'EU customer · EU-DE → France · EU-FR',
+      payload: { dataset_id: 'demo-eu-001', target_country: 'EU-FR', purpose: 'analytics',
+                 jurisdictions: ['GDPR'], classification: 'PII', has_consent: true, signature_count: 0 } },
+  ];
+
+  const runAll = async () => {
+    setRunning(true);
+    setError('');
+    setResults([]);
+    try {
+      const all = [];
+      for (const test of tests) {
+        try {
+          const res = await api.borderCheck(test.payload);
+          all.push({ label: test.label, decision: res.decision, reason: res.reason, fabric_tx: res.fabric_tx_id });
+        } catch (e) {
+          all.push({ label: test.label, decision: 'ERROR', reason: e.message });
+        }
+      }
+      setResults(all);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="display text-2xl mb-1">Conscious compliance</div>
+      <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">Data refuses what is not allowed</div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 stagger">
+        {[
+          { law: 'DPDP 2023 (India)', rules: 4, violations: 0, fixes: 0, color: 'var(--green)' },
+          { law: 'GDPR (EU)',         rules: 3, violations: 1, fixes: 1, color: 'var(--green)' },
+          { law: 'HIPAA (US)',        rules: 2, violations: 0, fixes: 0, color: 'var(--green)' },
+          { law: 'SOX (Financial)',   rules: 1, violations: 0, fixes: 0, color: 'var(--saffron)' },
+        ].map((c, i) => (
+          <div key={i} className="glass-card rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{c.law}</span>
+              <span className="badge" style={{ background: `${c.color}20`, color: c.color }}>active</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <div className="display text-2xl">{c.rules}</div>
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Rules</div>
+              </div>
+              <div>
+                <div className="display text-2xl" style={{ color: c.violations ? 'var(--coral)' : 'var(--ink)' }}>{c.violations}</div>
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Violations</div>
+              </div>
+              <div>
+                <div className="display text-2xl" style={{ color: 'var(--purple)' }}>{c.fixes}</div>
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Auto-fixes</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="glass-card rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="display text-lg">Border check simulator</div>
+            <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+              {online ? 'Live · calls /api/v1/compliance/border' : 'Offline — connect API to run live'}
+            </div>
+          </div>
+          <button onClick={runAll} disabled={running || !online}
+                  className="px-5 py-2 rounded-full bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[var(--navy-2)] disabled:opacity-40">
+            {running ? 'Running…' : 'Run all 4 checks ▶'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-[rgba(220,38,38,0.08)] text-[var(--coral)] text-xs">
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {tests.map((t, i) => {
+            const result = results[i];
+            const allowed = result?.decision === 'ALLOWED' || result?.decision === 'ALLOWED_WITH_FIX';
+            const blocked = result?.decision === 'BLOCKED';
+            return (
+              <div key={i} className="border border-[var(--line)] rounded-xl p-4">
+                <div className="text-xs mb-2 mono">{t.label}</div>
+                {!result && (
+                  <div className="text-xs text-[var(--muted)]">Click "Run all 4 checks" to simulate live</div>
+                )}
+                {result && (
+                  <>
+                    <div className={`text-xs ${allowed ? 'text-[var(--green)]' : blocked ? 'text-[var(--coral)]' : 'text-[var(--gold)]'}`}>
+                      <span className="badge"
+                            style={{ background: allowed ? 'rgba(5,150,105,0.12)' : blocked ? 'rgba(220,38,38,0.12)' : 'rgba(255,149,27,0.12)',
+                                     color: allowed ? 'var(--green)' : blocked ? 'var(--coral)' : 'var(--gold)' }}>
+                        {result.decision}
+                      </span>
+                      <span className="ml-2">{result.reason}</span>
+                    </div>
+                    {result.fabric_tx && (
+                      <div className="mono text-[10px] text-[var(--muted)] mt-1.5">tx: {result.fabric_tx.slice(0, 18)}...</div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Query = () => {
+  const { api, online } = useApp();
+  const [text, setText] = useState('చివరి నెలలో అత్యధిక అమ్మకాలు ఏ ప్రాంతంలో?');
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  const samples = [
+    { lang: 'Telugu',  text: 'చివరి నెలలో అత్యధిక అమ్మకాలు ఏ ప్రాంతంలో?' },
+    { lang: 'Hindi',   text: 'पिछले महीने सबसे ज़्यादा बिक्री किस क्षेत्र में हुई?' },
+    { lang: 'English', text: 'Show me top regions by revenue last month' },
+    { lang: 'English', text: 'Pipelines below 4.5 sigma' },
+  ];
+
+  const runQuery = async () => {
+    setRunning(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await api.nlpQuery({
+        text,
+        language: 'auto',
+        tables: ['sales_transactions'],
+        execute: true,
+        limit: 10,
+      });
+      setResult(res);
+    } catch (e) {
+      setError(e.message || 'Query failed');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="display text-2xl mb-1">Ask the data</div>
+      <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">
+        Telugu · Hindi · Tamil · English · automatic SQL · sub-second
+        {online && <span className="text-[var(--green)] ml-2">● live</span>}
+        {!online && <span className="text-[var(--saffron)] ml-2">● API offline</span>}
+      </div>
+
+      <div className="glass-card rounded-2xl p-6">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {samples.map((s,i) => (
+            <button key={i} onClick={() => setText(s.text)}
+                    className="text-xs px-3 py-1.5 rounded-full border border-[var(--line)] hover:bg-white/60">
+              <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{s.lang}</span>
+              <span className="ml-1.5">{s.text.slice(0, 35)}{s.text.length > 35 ? '…' : ''}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <input value={text} onChange={e => setText(e.target.value)}
+                 onKeyDown={e => e.key === 'Enter' && online && runQuery()}
+                 placeholder="Ask anything in any language..."
+                 className="flex-1 px-4 py-3 rounded-xl bg-white/70 border border-[var(--line)]
+                            font-medium text-sm focus:outline-none focus:border-[var(--ink)]" />
+          <button onClick={runQuery} disabled={running || !online}
+                  className="px-6 py-3 rounded-xl bg-[var(--ink)] text-[var(--paper)] text-sm font-medium
+                             hover:bg-[var(--navy-2)] disabled:opacity-40">
+            {running ? 'Translating…' : 'Run query →'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-[rgba(220,38,38,0.08)] text-[var(--coral)] text-xs">
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-6 fade-in">
+            <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-2">
+              Generated SQL · {result.engine} · {result.elapsed_ms}ms · detected language: {result.language}
+            </div>
+            <pre className="mono text-xs bg-[var(--navy)] text-[#E8E2CE] p-4 rounded-xl overflow-x-auto">
+{result.sql}
+            </pre>
+            {result.rows && result.rows.length > 0 && (
+              <>
+                <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mt-5 mb-2">
+                  Result · {result.row_count} rows
+                </div>
+                <div className="border border-[var(--line)] rounded-xl overflow-hidden">
+                  {result.rows.map((row, i) => (
+                    <div key={i} className="grid grid-cols-2 px-4 py-2.5 border-b border-[var(--line)] last:border-b-0 hover:bg-white/40">
+                      {Object.entries(row).map(([k, v], j) => (
+                        <div key={j} className={j === 0 ? 'font-medium text-sm' : 'text-right mono text-sm'}>
+                          {typeof v === 'number' ? v.toLocaleString('en-IN') : String(v)}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Intent = () => {
+  const { api, online } = useApp();
+  const [intent, setIntent] = useState('Send daily sales reports for top 5 regions every morning at 6am');
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+
+  const samples = [
+    'Send daily sales reports for top 5 regions every morning at 6am',
+    'Alert me when revenue drops below 10 lakhs',
+    'Make patient_records DPDP compliant',
+    'Generate quality report every 15 minutes',
+  ];
+
+  const submit = async () => {
+    setRunning(true); setError(''); setResult(null);
+    try {
+      const res = await api.submitIntent({
+        intent,
+        language: 'en',
+        tables: ['sales_transactions'],
+      });
+      setResult(res);
+    } catch (e) {
+      setError(e.message || 'Intent failed');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="display text-2xl mb-1">AI Operating System</div>
+      <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">
+        Declare intent · AI builds and deploys the pipeline
+        {online && <span className="text-[var(--green)] ml-2">● live</span>}
+        {!online && <span className="text-[var(--saffron)] ml-2">● API offline</span>}
+      </div>
+
+      <div className="glass-card rounded-2xl p-6">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {samples.map((s, i) => (
+            <button key={i} onClick={() => setIntent(s)}
+                    className="text-xs px-3 py-1.5 rounded-full border border-[var(--line)] hover:bg-white/60 text-left">
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <input value={intent} onChange={e => setIntent(e.target.value)}
+                 onKeyDown={e => e.key === 'Enter' && online && submit()}
+                 placeholder="Describe what you want — natural language..."
+                 className="flex-1 px-4 py-3 rounded-xl bg-white/70 border border-[var(--line)]
+                            font-medium text-sm focus:outline-none focus:border-[var(--ink)]" />
+          <button onClick={submit} disabled={running || !online}
+                  className="px-6 py-3 rounded-xl bg-[var(--ink)] text-[var(--paper)] text-sm font-medium
+                             hover:bg-[var(--navy-2)] disabled:opacity-40">
+            {running ? 'Building…' : 'Build pipeline →'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-[rgba(220,38,38,0.08)] text-[var(--coral)] text-xs">
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-6 fade-in space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white/60 rounded-xl p-3">
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)] mb-1">Intent type</div>
+                <div className="font-medium text-sm">{result.intent_type}</div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3">
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)] mb-1">Schedule</div>
+                <div className="font-medium text-sm mono">{result.schedule}</div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3">
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)] mb-1">Sigma target</div>
+                <div className="font-medium text-sm" style={{ color: 'var(--green)' }}>{result.sigma_target}σ</div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3">
+                <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)] mb-1">Status</div>
+                <div className="font-medium text-sm" style={{ color: 'var(--green)' }}>{result.status}</div>
+              </div>
+            </div>
+            <div>
+              <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-1">Pipeline ID</div>
+              <div className="mono text-xs">{result.pipeline_id}</div>
+            </div>
+            {result.sql && (
+              <div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-2">Generated SQL</div>
+                <pre className="mono text-xs bg-[var(--navy)] text-[#E8E2CE] p-4 rounded-xl overflow-x-auto">{result.sql}</pre>
+              </div>
+            )}
+            {result.dag_url && (
+              <a href={result.dag_url} target="_blank" rel="noopener"
+                 className="inline-block text-xs text-[var(--purple)] hover:underline">
+                Open DAG in Airflow →
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════════════
+const App = () => {
+  const [tab, setTab] = useState('Overview');
+  const [apiUrl, _setApiUrl] = useState(apiClient.apiUrl);
+  const [online, setOnline] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  const setApiUrl = (url) => {
+    apiClient.setApiUrl(url);
+    _setApiUrl(url);
+    setOnline(null);  // re-test
+  };
+
+  const login = useCallback(async (username, password) => {
+    const res = await apiClient.login(username, password);
+    apiClient.setToken(res.access_token);
+    setUser({ user_id: res.user_id, tenant_id: res.tenant_id, roles: res.roles });
+    return res;
+  }, []);
+
+  const logout = useCallback(() => {
+    apiClient.setToken('');
+    setUser(null);
+  }, []);
+
+  // Health check on mount and whenever apiUrl changes
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        await apiClient.health();
+        if (!cancelled) setOnline(true);
+      } catch (e) {
+        if (!cancelled) setOnline(false);
+      }
+    };
+    check();
+    const interval = setInterval(check, 30000);   // re-check every 30s
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [apiUrl]);
+
+  // If a token is in localStorage, try to load /auth/me
+  useEffect(() => {
+    if (!apiClient.token || user) return;
+    apiClient.me().then(setUser).catch(() => apiClient.setToken(''));
+  }, [apiUrl]);
+
+  const ctx = {
+    api: apiClient,
+    apiUrl, setApiUrl,
+    online,
+    user, login, logout,
+    openSettings: () => setShowSettings(true),
+  };
+
+  return (
+    <AppContext.Provider value={ctx}>
+      <div className="relative z-10 min-h-screen">
+        <Header tab={tab} setTab={setTab} />
+        <ConnectionBanner />
+        {tab === 'Overview'   && <Overview />}
+        {tab === 'Pipelines'  && <Pipelines />}
+        {tab === 'Fabric'     && <Fabric />}
+        {tab === 'Audit'      && <AuditView />}
+        {tab === 'Compliance' && <Compliance />}
+        {tab === 'Query'      && <Query />}
+        {tab === 'Intent'     && <Intent />}
+        <div className="px-8 py-6 mt-12 border-t border-[var(--line)] flex items-center justify-between">
+          <div className="text-xs text-[var(--muted)]">
+            DataNexus · Open source · Apache 2.0 · datanexus.io
+          </div>
+          <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+            Built on Hadoop · Guided by the Gita · Six Sigma enforced
+          </div>
+        </div>
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      </div>
+    </AppContext.Provider>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "datanexus-api.fullname" . }}-config
+  labels:
+    {{- include "datanexus-api.labels" . | nindent 4 }}
+data:
+  APP_ENV:                       {{ .Values.config.appEnv | quote }}
+  APP_VERSION:                   {{ .Chart.AppVersion | quote }}
+  LOG_LEVEL:                     {{ .Values.config.logLevel | quote }}
+  HOST:                          "0.0.0.0"
+  PORT:                          {{ .Values.service.targetPort | quote }}
+  WORKERS:                       {{ .Values.config.workers | quote }}
+  REQUIRE_AUTH:                  "true"
+  FABRIC_MODE:                   {{ .Values.config.fabricMode | quote }}
+  FABRIC_CHANNEL_NAME:           {{ .Values.config.fabricChannelName | quote }}
+  FABRIC_ORG_MSP:                {{ .Values.config.fabricOrgMsp | quote }}
+  HDFS_NAMENODE:                 {{ .Values.config.hdfsNamenode | quote }}
+  KAFKA_BROKERS:                 {{ .Values.config.kafkaBrokers | quote }}
+  PRESTO_HOST:                   {{ .Values.config.prestoHost | quote }}
+  PRESTO_PORT:                   {{ .Values.config.prestoPort | quote }}
+  ATLAS_URL:                     {{ .Values.config.atlasUrl | quote }}
+  IPFS_API_URL:                  {{ .Values.config.ipfsApiUrl | quote }}
+  MLFLOW_TRACKING_URI:           {{ .Values.config.mlflowTrackingUri | quote }}
+  AIRFLOW_API_URL:               {{ .Values.config.airflowApiUrl | quote }}
+  POSTGRES_POOL_SIZE:            {{ .Values.config.postgresPoolSize | quote }}
+  RATE_LIMIT_PER_MINUTE:         {{ .Values.config.rateLimitPerMinute | quote }}
+  METRICS_ENABLED:               {{ .Values.config.metricsEnabled | quote }}
+  TRACING_ENABLED:               {{ .Values.config.tracingEnabled | quote }}
+  SLA_MINIMUM_SIGMA:             {{ .Values.config.slaMinimumSigma | quote }}
+  SLA_TARGET_SIGMA:              {{ .Values.config.slaTargetSigma | quote }}
+  QUALITY_QUARANTINE_THRESHOLD:  {{ .Values.config.qualityQuarantineThreshold | quote }}
+  CORS_ORIGINS:                  {{ .Values.config.corsOrigins | toJson | quote }}

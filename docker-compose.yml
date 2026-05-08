@@ -1,0 +1,278 @@
+version: '3.9'
+
+# DataNexus Era 3 — Full Stack Docker Compose
+# Brings up all 6 innovations as connected services
+# Run: docker-compose up -d
+
+x-common: &common
+  restart: unless-stopped
+  networks: [datanexus-fabric]
+
+services:
+
+  # ── CORE: HADOOP / HDFS ─────────────────────────────────
+  namenode:
+    <<: *common
+    image: apache/hadoop:3.3.6
+    hostname: namenode
+    command: ["hdfs","namenode"]
+    environment:
+      CLUSTER_NAME: datanexus-era3
+      HDFS_NAMENODE_USER: hadoop
+    ports: ["9870:9870","9000:9000"]
+    volumes: ["namenode_data:/opt/hadoop/data/nameNode"]
+
+  datanode-1:
+    <<: *common
+    image: apache/hadoop:3.3.6
+    command: ["hdfs","datanode"]
+    environment: {SERVICE_PRECONDITION: "namenode:9870"}
+    volumes: ["datanode1_data:/opt/hadoop/data/dataNode"]
+    depends_on: [namenode]
+
+  datanode-2:
+    <<: *common
+    image: apache/hadoop:3.3.6
+    command: ["hdfs","datanode"]
+    environment: {SERVICE_PRECONDITION: "namenode:9870"}
+    volumes: ["datanode2_data:/opt/hadoop/data/dataNode"]
+    depends_on: [namenode]
+
+  # ── STREAMING: KAFKA ────────────────────────────────────
+  zookeeper:
+    <<: *common
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports: ["2181:2181"]
+
+  kafka-1:
+    <<: *common
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [zookeeper]
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  kafka-2:
+    <<: *common
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on: [zookeeper]
+    ports: ["9093:9093"]
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:29093,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+
+  schema-registry:
+    <<: *common
+    image: confluentinc/cp-schema-registry:7.5.0
+    depends_on: [kafka-1]
+    ports: ["8081:8081"]
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka-1:29092
+
+  # ── ORCHESTRATION: AIRFLOW ──────────────────────────────
+  airflow-db:
+    <<: *common
+    image: postgres:15
+    environment: {POSTGRES_USER: airflow, POSTGRES_PASSWORD: datanexus, POSTGRES_DB: airflow}
+    volumes: ["airflow_db:/var/lib/postgresql/data"]
+
+  airflow-webserver:
+    <<: *common
+    image: apache/airflow:2.8.0
+    depends_on: [airflow-db]
+    ports: ["8080:8080"]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:datanexus@airflow-db/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY: datanexus-era3-fernet-key-32bytes!!!
+      AIRFLOW__WEBSERVER__SECRET_KEY: datanexus-secret
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+    volumes:
+      - ./era3/ai_os/generated_dags:/opt/airflow/dags
+      - airflow_logs:/opt/airflow/logs
+    command: webserver
+
+  airflow-scheduler:
+    <<: *common
+    image: apache/airflow:2.8.0
+    depends_on: [airflow-db, redis]
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:datanexus@airflow-db/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+    volumes:
+      - ./era3/ai_os/generated_dags:/opt/airflow/dags
+    command: scheduler
+
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  # ── QUERY: PRESTO / TRINO ───────────────────────────────
+  presto:
+    <<: *common
+    image: trinodb/trino:435
+    ports: ["8090:8080"]
+    volumes:
+      - ./config/presto/catalog:/etc/trino/catalog
+      - ./config/presto/config.properties:/etc/trino/config.properties
+
+  # ── GOVERNANCE: APACHE ATLAS ────────────────────────────
+  atlas:
+    <<: *common
+    image: sburn/apache-atlas:2.3.0
+    ports: ["21000:21000"]
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx4g"
+    volumes: ["atlas_data:/opt/apache-atlas/data"]
+
+  # ── SECURITY: APACHE RANGER ─────────────────────────────
+  ranger-db:
+    <<: *common
+    image: postgres:15
+    environment: {POSTGRES_USER: ranger, POSTGRES_PASSWORD: datanexus, POSTGRES_DB: ranger}
+    volumes: ["ranger_db:/var/lib/postgresql/data"]
+
+  # ── ANALYTICS: APACHE SUPERSET ──────────────────────────
+  superset:
+    <<: *common
+    image: apache/superset:3.1.0
+    ports: ["8088:8088"]
+    environment:
+      SUPERSET_SECRET_KEY: datanexus-superset-secret
+      SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://airflow:datanexus@airflow-db/superset
+    depends_on: [airflow-db]
+    command: >
+      sh -c "superset db upgrade &&
+             superset fab create-admin --username admin --password datanexus --firstname DataNexus --lastname Admin --email admin@datanexus.io &&
+             superset init &&
+             gunicorn -w 4 -k gevent 'superset.app:create_app()' --bind 0.0.0.0:8088"
+
+  # ── BLOCKCHAIN: HYPERLEDGER FABRIC ──────────────────────
+  fabric-orderer:
+    <<: *common
+    image: hyperledger/fabric-orderer:2.5
+    ports: ["7050:7050"]
+    environment:
+      ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+      ORDERER_GENERAL_LISTENPORT: 7050
+      ORDERER_GENERAL_GENESISMETHOD: file
+      ORDERER_GENERAL_GENESISFILE: /var/hyperledger/orderer/orderer.genesis.block
+      ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      FABRIC_LOGGING_SPEC: INFO
+    volumes:
+      - ./config/fabric/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ./config/fabric/msp:/var/hyperledger/orderer/msp
+      - fabric_orderer:/var/hyperledger/production/orderer
+
+  fabric-peer-org1:
+    <<: *common
+    image: hyperledger/fabric-peer:2.5
+    ports: ["7051:7051","7053:7053"]
+    environment:
+      CORE_PEER_ID: peer0.org1.datanexus.io
+      CORE_PEER_ADDRESS: peer0.org1.datanexus.io:7051
+      CORE_PEER_LOCALMSPID: Org1MSP
+      CORE_PEER_TLS_ENABLED: "true"
+      CORE_PEER_GOSSIP_EXTERNALENDPOINT: peer0.org1.datanexus.io:7051
+      FABRIC_LOGGING_SPEC: INFO
+    volumes:
+      - ./config/fabric/peer-org1:/etc/hyperledger/fabric
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - fabric_peer1:/var/hyperledger/production
+    depends_on: [fabric-orderer]
+
+  fabric-peer-org2:
+    <<: *common
+    image: hyperledger/fabric-peer:2.5
+    ports: ["8051:8051"]
+    environment:
+      CORE_PEER_ID: peer0.org2.datanexus.io
+      CORE_PEER_ADDRESS: peer0.org2.datanexus.io:8051
+      CORE_PEER_LOCALMSPID: Org2MSP
+      CORE_PEER_TLS_ENABLED: "true"
+      FABRIC_LOGGING_SPEC: INFO
+    volumes:
+      - ./config/fabric/peer-org2:/etc/hyperledger/fabric
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - fabric_peer2:/var/hyperledger/production
+    depends_on: [fabric-orderer]
+
+  # ── DISTRIBUTED STORAGE: IPFS ───────────────────────────
+  ipfs:
+    <<: *common
+    image: ipfs/kubo:v0.24.0
+    ports: ["4001:4001","5001:5001","8085:8080"]
+    volumes: ["ipfs_data:/data/ipfs"]
+
+  # ── ML TRACKING: MLFLOW ─────────────────────────────────
+  mlflow:
+    <<: *common
+    image: ghcr.io/mlflow/mlflow:v2.10.0
+    ports: ["5000:5000"]
+    environment:
+      MLFLOW_TRACKING_URI: postgresql+psycopg2://airflow:datanexus@airflow-db/mlflow
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+        --backend-store-uri postgresql+psycopg2://airflow:datanexus@airflow-db/mlflow
+        --default-artifact-root /mlflow/artifacts
+    volumes: ["mlflow_data:/mlflow/artifacts"]
+    depends_on: [airflow-db]
+
+  # ── DATANEXUS ERA 3 API ─────────────────────────────────
+  datanexus-api:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports: ["8000:8000"]
+    environment:
+      KAFKA_BROKERS:   kafka-1:29092,kafka-2:29093
+      HDFS_NAMENODE:   namenode:9000
+      PRESTO_HOST:     presto:8080
+      ATLAS_HOST:      atlas:21000
+      FABRIC_PEER:     fabric-peer-org1:7051
+      IPFS_API:        ipfs:5001
+      MLFLOW_URI:      http://mlflow:5000
+      AIRFLOW_API:     http://airflow-webserver:8080
+    depends_on: [kafka-1, namenode, presto, atlas, ipfs, mlflow]
+    volumes: ["./era3:/app/era3"]
+
+  # ── DATANEXUS ERA 3 UI ──────────────────────────────────
+  datanexus-ui:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports: ["3000:3000"]
+    environment:
+      REACT_APP_API_URL: http://datanexus-api:8000
+    depends_on: [datanexus-api]
+
+networks:
+  datanexus-fabric:
+    driver: bridge
+    ipam:
+      config: [{subnet: "172.20.0.0/16"}]
+
+volumes:
+  namenode_data:  fabric_orderer:  fabric_peer1:  fabric_peer2:
+  datanode1_data: datanode2_data:  atlas_data:    ranger_db:
+  airflow_db:     airflow_logs:    ipfs_data:     mlflow_data:

@@ -1,0 +1,180 @@
+# DataNexus Era 3 — API Service Helm values
+# Production defaults targeting AWS EKS in ap-south-1 (Mumbai).
+# Override with: helm install -f values-prod.yaml ...
+
+# ─── Image ───────────────────────────────────────────────────
+image:
+  repository: datanexus/api
+  tag: "3.0.0-era3"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# ─── Replica configuration ───────────────────────────────────
+replicaCount: 3
+
+# ─── Resource sizing ─────────────────────────────────────────
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# ─── Horizontal Pod Autoscaler ───────────────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ─── Pod Disruption Budget ───────────────────────────────────
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# ─── Service ─────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+  annotations: {}
+
+# ─── Ingress (TLS via cert-manager) ──────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: api.datanexus.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: datanexus-api-tls
+      hosts:
+        - api.datanexus.io
+
+# ─── Health probes ───────────────────────────────────────────
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  startup:
+    path: /health
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30      # 150s grace period for slow starts
+
+# ─── Application configuration ───────────────────────────────
+config:
+  appEnv: production
+  logLevel: INFO
+  workers: 4
+  fabricMode: production
+  fabricChannelName: datanexus-channel
+  fabricOrgMsp: Org1MSP
+  hdfsNamenode: hdfs-namenode.hadoop.svc.cluster.local:9000
+  kafkaBrokers: kafka-broker-1.kafka.svc.cluster.local:9092,kafka-broker-2.kafka.svc.cluster.local:9092
+  prestoHost: presto.analytics.svc.cluster.local
+  prestoPort: 8080
+  atlasUrl: http://atlas.governance.svc.cluster.local:21000
+  ipfsApiUrl: http://ipfs.fabric.svc.cluster.local:5001
+  mlflowTrackingUri: http://mlflow.ml.svc.cluster.local:5000
+  airflowApiUrl: http://airflow-webserver.airflow.svc.cluster.local:8080/api/v1
+  postgresPoolSize: 20
+  rateLimitPerMinute: 100
+  metricsEnabled: true
+  tracingEnabled: true
+  slaMinimumSigma: 4.5
+  slaTargetSigma: 5.5
+  qualityQuarantineThreshold: 4.0
+  corsOrigins:
+    - https://app.datanexus.io
+    - https://dashboard.datanexus.io
+
+# ─── Secrets (use external-secrets-operator in production) ──
+secrets:
+  # Reference these via secretRef in deployment, not values
+  jwtSecretKey: ""           # set via: kubectl create secret generic
+  postgresDsn: ""
+  atlasPassword: ""
+  airflowPassword: ""
+  apiKeyHeader: "X-DataNexus-API-Key"
+
+# ─── Network policy ──────────────────────────────────────────
+networkPolicy:
+  enabled: true
+  ingressPodSelector:
+    matchLabels:
+      app.kubernetes.io/component: ingress-controller
+
+# ─── Service account ─────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: ""        # auto-generated from release name
+  annotations:
+    # IRSA for AWS — let pods assume IAM role
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/datanexus-api-role
+
+# ─── Pod-level security ──────────────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# ─── Affinity & spread ───────────────────────────────────────
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [datanexus-api]
+          topologyKey: topology.kubernetes.io/zone
+
+tolerations: []
+nodeSelector: {}
+
+# ─── Observability ───────────────────────────────────────────
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    namespace: monitoring
+    labels:
+      release: prometheus
+
+# ─── Init containers (e.g. wait for DB migrations) ──────────
+initContainers: []

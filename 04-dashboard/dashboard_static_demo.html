@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataNexus — The Data Fabric</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Geist+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --navy: #0D1B3E;
+    --navy-2: #0A1530;
+    --saffron: #FF951B;
+    --saffron-soft: #FFB554;
+    --gold: #BA7517;
+    --teal: #028090;
+    --green: #059669;
+    --green-soft: #34D399;
+    --coral: #DC2626;
+    --purple: #534AB7;
+    --paper: #FAF8F2;
+    --off: #F4EFE2;
+    --line: rgba(13, 27, 62, 0.08);
+    --line-strong: rgba(13, 27, 62, 0.18);
+    --ink: #0D1B3E;
+    --ink-2: #2A3658;
+    --muted: #6B7793;
+  }
+  * { -webkit-font-smoothing: antialiased; }
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Geist', -apple-system, sans-serif;
+    margin: 0;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(rgba(13, 27, 62, 0.06) 1px, transparent 1px);
+    background-size: 22px 22px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .display { font-family: 'Fraunces', serif; font-feature-settings: "ss01"; letter-spacing: -0.02em; }
+  .mono { font-family: 'Geist Mono', monospace; }
+
+  .glass-card {
+    background: rgba(255, 253, 247, 0.78);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 0 0 1px rgba(13,27,62,0.02);
+  }
+  .ink-card {
+    background: var(--navy);
+    color: #F0E9D8;
+  }
+
+  .pulse-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green-soft);
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+    70%  { box-shadow: 0 0 0 12px rgba(52, 211, 153, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  }
+
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.4;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.18'/></svg>");
+    mix-blend-mode: multiply;
+  }
+
+  .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
+  @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(8px); } }
+
+  .stagger > * { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
+  .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.10s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.20s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.25s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.30s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.35s; }
+  .stagger > *:nth-child(8) { animation-delay: 0.40s; }
+
+  .sigma-bar {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--coral) 0%, var(--saffron) 50%, var(--green) 100%);
+    position: relative;
+  }
+  .sigma-bar::after {
+    content: ""; position: absolute; top: -4px;
+    width: 2px; height: 12px; background: var(--ink);
+  }
+
+  .nav-tab {
+    padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
+  .nav-tab:hover { color: var(--ink); background: rgba(13,27,62,0.04); }
+  .nav-tab.active {
+    background: var(--ink); color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+
+  .pipeline-line {
+    background: repeating-linear-gradient(90deg,
+      var(--ink) 0, var(--ink) 4px,
+      transparent 4px, transparent 10px);
+    height: 1px; opacity: 0.3;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+  }
+  .badge-success { background: rgba(5, 150, 105, 0.12); color: var(--green); }
+  .badge-warn    { background: rgba(255, 149, 27, 0.12); color: var(--gold); }
+  .badge-danger  { background: rgba(220, 38, 38, 0.12); color: var(--coral); }
+  .badge-info    { background: rgba(83, 74, 183, 0.12); color: var(--purple); }
+  .badge-ink     { background: rgba(13, 27, 62, 0.08);  color: var(--ink); }
+
+  .ascii-art {
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px; line-height: 1.2;
+    color: var(--muted); white-space: pre;
+    user-select: none;
+  }
+
+  /* radial sigma gauge */
+  .gauge { transform: rotate(-90deg); }
+  .gauge-track { stroke: var(--line-strong); stroke-width: 6; fill: none; }
+  .gauge-fill  { stroke-width: 6; fill: none; stroke-linecap: round;
+                  transition: stroke-dashoffset 0.8s ease; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── DEMO DATA ─────────────────────────────────────────────────
+const initialPipelines = [
+  { id: 'pl-001', name: 'patient_records_apollo', sigma: 5.9, status: 'healthy',
+    laws: ['DPDP'], fabric: 'TX_91954854b09', region: 'IN-TG',
+    runs: 1247, lastRun: '2 min ago', healingRate: 88 },
+  { id: 'pl-002', name: 'sales_transactions_q4', sigma: 5.4, status: 'healthy',
+    laws: ['DPDP'], fabric: 'TX_a3c8d51fb26', region: 'IN-MH',
+    runs: 892,  lastRun: '5 min ago', healingRate: 92 },
+  { id: 'pl-003', name: 'iot_factory_sensors', sigma: 4.8, status: 'warning',
+    laws: ['DPDP'], fabric: 'TX_e7f2db89c14', region: 'IN-AP',
+    runs: 4502, lastRun: '12 sec ago', healingRate: 78 },
+  { id: 'pl-004', name: 'eu_customer_profile', sigma: 5.7, status: 'healthy',
+    laws: ['GDPR'], fabric: 'TX_b6c4d92ef03', region: 'EU-DE',
+    runs: 312,  lastRun: '15 min ago', healingRate: 95 },
+];
+
+const fabricNodes = [
+  { id: 'dn-hyderabad-01', region: 'IN-TG', type: 'Core',     items: 1247, sigma: 5.9 },
+  { id: 'dn-mumbai-01',    region: 'IN-MH', type: 'Core',     items:  892, sigma: 5.4 },
+  { id: 'dn-delhi-01',     region: 'IN-DL', type: 'Core',     items:  445, sigma: 5.6 },
+  { id: 'dn-hospital-hyd', region: 'IN-TG', type: 'Edge',     items:   28, sigma: 5.9 },
+  { id: 'dn-factory-ap',   region: 'IN-AP', type: 'Edge IoT', items: 4502, sigma: 4.8 },
+  { id: 'dn-eu-frankfurt', region: 'EU-DE', type: 'Core',     items:  312, sigma: 5.7 },
+];
+
+const auditEvents = [
+  { ts: '14:32:08', tx: 'TX_91954854b09', action: 'TRANSFORM', dataset: 'patient_records_apollo',  result: 'OK' },
+  { ts: '14:31:55', tx: 'TX_a3c8d51fb26', action: 'INGEST',    dataset: 'sales_transactions_q4',   result: 'OK' },
+  { ts: '14:31:42', tx: 'TX_e7f2db89c14', action: 'BORDER',    dataset: 'iot_factory_sensors',     result: 'BLOCKED — DPDP' },
+  { ts: '14:31:18', tx: 'TX_b6c4d92ef03', action: 'QUERY',     dataset: 'eu_customer_profile',     result: 'OK' },
+  { ts: '14:30:55', tx: 'TX_d8a1b7c4e92', action: 'AUTO-HEAL', dataset: 'iot_factory_sensors',     result: 'FIXED' },
+  { ts: '14:30:31', tx: 'TX_f2e9c8a3b71', action: 'TRANSFORM', dataset: 'patient_records_apollo',  result: 'OK' },
+  { ts: '14:30:08', tx: 'TX_c5b8d4f9a23', action: 'INGEST',    dataset: 'iot_factory_sensors',     result: 'OK' },
+];
+
+// ── COMPONENTS ────────────────────────────────────────────────
+const SigmaGauge = ({ value, size = 88 }) => {
+  const r = (size - 12) / 2;
+  const C = 2 * Math.PI * r;
+  const pct = Math.min(value / 6, 1);
+  const offset = C * (1 - pct);
+  const color = value >= 5.5 ? 'var(--green)'
+              : value >= 4.5 ? 'var(--saffron)'
+              : 'var(--coral)';
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="gauge" width={size} height={size}>
+        <circle cx={size/2} cy={size/2} r={r} className="gauge-track" />
+        <circle cx={size/2} cy={size/2} r={r}
+                className="gauge-fill"
+                stroke={color}
+                strokeDasharray={C}
+                strokeDashoffset={offset} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="display text-2xl" style={{ color }}>{value.toFixed(1)}</span>
+        <span className="mono text-[9px] tracking-widest text-[var(--muted)] uppercase">σ</span>
+      </div>
+    </div>
+  );
+};
+
+const Header = ({ tab, setTab }) => (
+  <div className="px-8 pt-6 pb-4 flex items-center justify-between border-b border-[var(--line)]">
+    <div className="flex items-center gap-6">
+      <div>
+        <div className="display text-xl tracking-tight">DataNexus</div>
+        <div className="mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">Era 3 · The Data Fabric</div>
+      </div>
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 border border-[var(--line)]">
+        <span className="pulse-dot"></span>
+        <span className="mono text-[11px] text-[var(--ink-2)]">Fabric · all systems operational</span>
+      </div>
+    </div>
+    <div className="flex items-center gap-2">
+      {['Overview','Pipelines','Fabric','Audit','Compliance','Query'].map(t => (
+        <div key={t} className={`nav-tab ${tab===t ? 'active' : ''}`}
+             onClick={() => setTab(t)}>{t}</div>
+      ))}
+    </div>
+  </div>
+);
+
+const KPICard = ({ label, value, sub, accent, icon }) => (
+  <div className="glass-card rounded-2xl p-5 fade-in">
+    <div className="flex items-start justify-between mb-3">
+      <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{label}</span>
+      {icon}
+    </div>
+    <div className="display text-4xl tracking-tight" style={{ color: accent || 'var(--ink)' }}>{value}</div>
+    {sub && <div className="text-xs text-[var(--muted)] mt-1">{sub}</div>}
+  </div>
+);
+
+const Overview = () => {
+  const avgSigma = (initialPipelines.reduce((s,p)=>s+p.sigma,0) / initialPipelines.length);
+  return (
+    <div className="px-8 py-6 stagger">
+      <div className="grid grid-cols-12 gap-4 mb-6">
+        <div className="col-span-12 md:col-span-7 ink-card rounded-2xl p-7 relative overflow-hidden">
+          <div className="grain"></div>
+          <div className="relative">
+            <div className="badge badge-ink mb-4" style={{ background: 'rgba(255,149,27,0.15)', color: 'var(--saffron-soft)' }}>
+              <span className="pulse-dot" style={{ background: 'var(--saffron)' }}></span>
+              <span className="mono text-[10px] uppercase tracking-widest">Live · DPDP compliant · Blockchain verified</span>
+            </div>
+            <div className="display text-4xl md:text-5xl leading-tight mb-3">
+              The data fabric<br />
+              <span className="italic" style={{ color: 'var(--saffron)' }}>that knows itself.</span>
+            </div>
+            <div className="text-sm text-[#C4BFAF] max-w-xl leading-relaxed">
+              Every transformation cryptographically logged. Every pipeline measured to Six Sigma.
+              Every byte governed by its own laws. Running across {fabricNodes.length} nodes
+              in {new Set(fabricNodes.map(n=>n.region)).size} regions right now.
+            </div>
+            <div className="flex items-center gap-6 mt-6">
+              <div>
+                <div className="display text-3xl">{avgSigma.toFixed(2)}σ</div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[#9A9482]">Avg sigma</div>
+              </div>
+              <div className="h-10 w-px bg-[#3A4566]"></div>
+              <div>
+                <div className="display text-3xl">3.4</div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[#9A9482]">Defects per million</div>
+              </div>
+              <div className="h-10 w-px bg-[#3A4566]"></div>
+              <div>
+                <div className="display text-3xl">{auditEvents.length}</div>
+                <div className="mono text-[10px] uppercase tracking-widest text-[#9A9482]">Audit events / min</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-5 grid grid-cols-2 gap-4">
+          <KPICard label="Pipelines"  value={initialPipelines.length} sub="all healthy" accent="var(--green)" />
+          <KPICard label="Fabric nodes" value={fabricNodes.length}    sub="6 online" accent="var(--ink)" />
+          <KPICard label="Heal rate"   value="88%"                    sub="auto-resolved" accent="var(--purple)" />
+          <KPICard label="DPDP audit"  value="60s"                    sub="time to proof" accent="var(--saffron)" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 md:col-span-8 glass-card rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="display text-xl">Pipelines</div>
+              <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Live sigma scores · Hyperledger verified</div>
+            </div>
+            <span className="badge badge-success"><span className="pulse-dot"></span>monitoring</span>
+          </div>
+          <div className="space-y-3">
+            {initialPipelines.map(p => (
+              <div key={p.id} className="flex items-center gap-4 py-3 border-t border-[var(--line)]">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className={`w-1 h-10 rounded-full`}
+                       style={{ background: p.status==='healthy' ? 'var(--green)' :
+                                              p.status==='warning' ? 'var(--saffron)' : 'var(--coral)' }}></div>
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{p.name}</div>
+                    <div className="mono text-[10px] text-[var(--muted)]">{p.fabric.slice(0,18)}... · {p.region}</div>
+                  </div>
+                </div>
+                <div className="hidden md:block">
+                  <span className={`badge ${p.laws[0]==='DPDP' ? 'badge-info' : 'badge-warn'}`}>{p.laws[0]}</span>
+                </div>
+                <div className="text-right min-w-[60px]">
+                  <div className="display text-lg" style={{
+                    color: p.sigma >= 5.5 ? 'var(--green)' : p.sigma >= 4.5 ? 'var(--saffron)' : 'var(--coral)'
+                  }}>{p.sigma}σ</div>
+                  <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">{p.runs} runs</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-4 glass-card rounded-2xl p-6">
+          <div className="display text-xl mb-1">Recent audit chain</div>
+          <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-4">Hyperledger Fabric · immutable</div>
+          <div className="space-y-3 max-h-[280px] overflow-y-auto scrollbar-thin">
+            {auditEvents.map((e, i) => (
+              <div key={i} className="border-l-2 pl-3 py-1"
+                   style={{ borderColor: e.result.startsWith('OK') ? 'var(--green)' :
+                                          e.result === 'FIXED' ? 'var(--purple)' : 'var(--coral)' }}>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="mono text-[10px] text-[var(--muted)]">{e.ts}</span>
+                  <span className={`mono text-[9px] font-medium ${
+                    e.result.startsWith('OK') ? 'text-[var(--green)]' :
+                    e.result === 'FIXED' ? 'text-[var(--purple)]' : 'text-[var(--coral)]'}`}>
+                    {e.result}
+                  </span>
+                </div>
+                <div className="text-xs font-medium">{e.action} · {e.dataset}</div>
+                <div className="mono text-[10px] text-[var(--muted)]">{e.tx}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Pipelines = () => (
+  <div className="px-8 py-6">
+    <div className="display text-2xl mb-1">All pipelines</div>
+    <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">{initialPipelines.length} active · Six Sigma DMAIC enforced</div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger">
+      {initialPipelines.map(p => (
+        <div key={p.id} className="glass-card rounded-2xl p-5">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="font-medium">{p.name}</div>
+              <div className="mono text-[10px] text-[var(--muted)] mt-0.5">{p.id} · {p.region}</div>
+            </div>
+            <SigmaGauge value={p.sigma} size={64} />
+          </div>
+          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[var(--line)]">
+            <div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Runs</div>
+              <div className="font-medium text-sm">{p.runs.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Heal rate</div>
+              <div className="font-medium text-sm" style={{ color: 'var(--purple)' }}>{p.healingRate}%</div>
+            </div>
+            <div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Last run</div>
+              <div className="font-medium text-sm">{p.lastRun}</div>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)] mb-1">Fabric tx</div>
+            <div className="mono text-[10px] text-[var(--ink-2)]">{p.fabric}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const Fabric = () => (
+  <div className="px-8 py-6">
+    <div className="display text-2xl mb-1">Zero gravity fabric</div>
+    <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">Content-addressed · auto-replicating · IPFS-backed</div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger">
+      {fabricNodes.map(n => (
+        <div key={n.id} className="glass-card rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="pulse-dot"></span>
+            <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{n.type}</span>
+          </div>
+          <div className="display text-lg mb-1">{n.id}</div>
+          <div className="text-xs text-[var(--muted)] mb-4">Region · {n.region}</div>
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="display text-3xl">{n.items.toLocaleString()}</div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Datasets stored</div>
+            </div>
+            <SigmaGauge value={n.sigma} size={56} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const AuditView = () => (
+  <div className="px-8 py-6">
+    <div className="flex items-center justify-between mb-1">
+      <div>
+        <div className="display text-2xl">Audit trail</div>
+        <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Hyperledger Fabric · cryptographically immutable</div>
+      </div>
+      <button className="px-4 py-2 rounded-full bg-[var(--ink)] text-[var(--paper)] text-xs font-medium hover:bg-[var(--navy-2)]">
+        Generate compliance PDF →
+      </button>
+    </div>
+    <div className="mt-6 glass-card rounded-2xl overflow-hidden">
+      <div className="grid grid-cols-12 gap-4 px-5 py-3 border-b border-[var(--line)] bg-white/50">
+        <div className="col-span-2 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Timestamp</div>
+        <div className="col-span-3 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Fabric TX</div>
+        <div className="col-span-2 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Action</div>
+        <div className="col-span-3 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Dataset</div>
+        <div className="col-span-2 mono text-[10px] uppercase tracking-widest text-[var(--muted)]">Result</div>
+      </div>
+      {auditEvents.map((e, i) => (
+        <div key={i} className="grid grid-cols-12 gap-4 px-5 py-3 border-b border-[var(--line)] hover:bg-white/40 fade-in"
+             style={{ animationDelay: `${i*0.05}s` }}>
+          <div className="col-span-2 mono text-xs">{e.ts}</div>
+          <div className="col-span-3 mono text-xs text-[var(--ink-2)]">{e.tx}</div>
+          <div className="col-span-2"><span className="badge badge-ink">{e.action}</span></div>
+          <div className="col-span-3 text-xs">{e.dataset}</div>
+          <div className="col-span-2">
+            <span className={`badge ${e.result.startsWith('OK') ? 'badge-success' :
+              e.result === 'FIXED' ? 'badge-info' : 'badge-danger'}`}>{e.result}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const Compliance = () => (
+  <div className="px-8 py-6">
+    <div className="display text-2xl mb-1">Conscious compliance</div>
+    <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">Data refuses what is not allowed</div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger">
+      {[
+        { law: 'DPDP 2023 (India)',  rules: 3, violations: 0, fixes: 0, status: 'compliant', color: 'var(--green)' },
+        { law: 'GDPR (EU)',           rules: 3, violations: 1, fixes: 1, status: 'compliant', color: 'var(--green)' },
+        { law: 'HIPAA (US)',          rules: 2, violations: 0, fixes: 0, status: 'compliant', color: 'var(--green)' },
+        { law: 'SOX (Financial)',     rules: 2, violations: 0, fixes: 0, status: 'pending',   color: 'var(--saffron)' },
+      ].map((c, i) => (
+        <div key={i} className="glass-card rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{c.law}</span>
+            <span className="badge" style={{ background: `${c.color}20`, color: c.color }}>{c.status}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="display text-2xl">{c.rules}</div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Rules</div>
+            </div>
+            <div>
+              <div className="display text-2xl" style={{ color: c.violations ? 'var(--coral)' : 'var(--ink)' }}>{c.violations}</div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Violations</div>
+            </div>
+            <div>
+              <div className="display text-2xl" style={{ color: 'var(--purple)' }}>{c.fixes}</div>
+              <div className="mono text-[9px] uppercase tracking-widest text-[var(--muted)]">Auto-fixes</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="mt-6 glass-card rounded-2xl p-6">
+      <div className="display text-lg mb-3">Border check simulator</div>
+      <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-4">
+        Pretend a dataset wants to cross a border. The data decides for itself.
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {[
+          { from: 'Apollo Hospital · IN-TG', to: 'Mumbai branch · IN-MH', allowed: true,  reason: 'Within India · DPDP allows · multi-sig logged' },
+          { from: 'Apollo Hospital · IN-TG', to: 'US pharma · US',         allowed: false, reason: 'BLOCKED · DPDP 2023 prohibits' },
+          { from: 'EU customer · EU-DE',     to: 'Singapore · SG',         allowed: false, reason: 'BLOCKED · GDPR · no adequacy decision' },
+          { from: 'EU customer · EU-DE',     to: 'France · EU-FR',         allowed: true,  reason: 'Within EU · GDPR adequate' },
+        ].map((b, i) => (
+          <div key={i} className="border border-[var(--line)] rounded-xl p-4">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="mono">{b.from}</span>
+              <span className="text-[var(--muted)]">→</span>
+              <span className="mono">{b.to}</span>
+            </div>
+            <div className={`mt-2 text-xs ${b.allowed ? 'text-[var(--green)]' : 'text-[var(--coral)]'}`}>{b.reason}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const Query = () => {
+  const [text, setText] = useState('చివరి నెలలో అత్యధిక అమ్మకాలు ఏ ప్రాంతంలో?');
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const samples = [
+    { lang: 'Telugu',  text: 'చివరి నెలలో అత్యధిక అమ్మకాలు ఏ ప్రాంతంలో?' },
+    { lang: 'Hindi',   text: 'पिछले महीने सबसे ज़्यादा बिक्री किस क्षेत्र में हुई?' },
+    { lang: 'English', text: 'Show me top regions by revenue last month' },
+    { lang: 'English', text: 'Pipelines below 4.5 sigma' },
+  ];
+
+  const runQuery = () => {
+    setRunning(true);
+    setResult(null);
+    setTimeout(() => {
+      setResult({
+        sql: `SELECT region, SUM(revenue) AS total_revenue
+FROM sales_transactions
+WHERE sale_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1' MONTH)
+  AND sale_date <  DATE_TRUNC('month', CURRENT_DATE)
+GROUP BY region
+ORDER BY total_revenue DESC`,
+        rows: [
+          { region: 'Hyderabad', revenue: 4_580_000 },
+          { region: 'Mumbai',    revenue: 3_920_000 },
+          { region: 'Delhi',     revenue: 3_140_000 },
+          { region: 'Bangalore', revenue: 2_780_000 },
+        ],
+        engine: 'Presto',
+        time_ms: 472,
+      });
+      setRunning(false);
+    }, 1100);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="display text-2xl mb-1">Ask the data</div>
+      <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-6">
+        Telugu · Hindi · Tamil · English · automatic SQL · sub-second
+      </div>
+
+      <div className="glass-card rounded-2xl p-6">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {samples.map((s,i) => (
+            <button key={i}
+                    onClick={() => setText(s.text)}
+                    className="text-xs px-3 py-1.5 rounded-full border border-[var(--line)] hover:bg-white/60 transition">
+              <span className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">{s.lang}</span>
+              <span className="ml-1.5">{s.text.slice(0, 35)}{s.text.length > 35 ? '…' : ''}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <input value={text} onChange={e => setText(e.target.value)}
+                 placeholder="Ask anything in any language..."
+                 className="flex-1 px-4 py-3 rounded-xl bg-white/70 border border-[var(--line)]
+                            font-medium text-sm focus:outline-none focus:border-[var(--ink)]" />
+          <button onClick={runQuery} disabled={running}
+                  className="px-6 py-3 rounded-xl bg-[var(--ink)] text-[var(--paper)] text-sm font-medium
+                             hover:bg-[var(--navy-2)] disabled:opacity-50">
+            {running ? 'Translating…' : 'Run query →'}
+          </button>
+        </div>
+
+        {result && (
+          <div className="mt-6 fade-in">
+            <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mb-2">
+              Generated SQL · {result.engine} · {result.time_ms}ms
+            </div>
+            <pre className="mono text-xs bg-[var(--navy)] text-[#E8E2CE] p-4 rounded-xl overflow-x-auto">
+{result.sql}
+            </pre>
+            <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)] mt-5 mb-2">
+              Result · {result.rows.length} rows
+            </div>
+            <div className="border border-[var(--line)] rounded-xl overflow-hidden">
+              {result.rows.map((r, i) => (
+                <div key={i} className="grid grid-cols-2 px-4 py-2.5 border-b border-[var(--line)] last:border-b-0 hover:bg-white/40">
+                  <div className="font-medium text-sm">{r.region}</div>
+                  <div className="text-right mono text-sm">₹{r.revenue.toLocaleString('en-IN')}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── APP ───────────────────────────────────────────────────────
+const App = () => {
+  const [tab, setTab] = useState('Overview');
+  return (
+    <div className="relative z-10 min-h-screen">
+      <Header tab={tab} setTab={setTab} />
+      {tab === 'Overview'   && <Overview />}
+      {tab === 'Pipelines'  && <Pipelines />}
+      {tab === 'Fabric'     && <Fabric />}
+      {tab === 'Audit'      && <AuditView />}
+      {tab === 'Compliance' && <Compliance />}
+      {tab === 'Query'      && <Query />}
+      <div className="px-8 py-6 mt-12 border-t border-[var(--line)] flex items-center justify-between">
+        <div className="text-xs text-[var(--muted)]">
+          DataNexus · Open source · Apache 2.0 · datanexus.io
+        </div>
+        <div className="mono text-[10px] uppercase tracking-widest text-[var(--muted)]">
+          Built on Hadoop · Guided by the Gita · Six Sigma enforced
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
