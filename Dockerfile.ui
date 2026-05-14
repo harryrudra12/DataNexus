@@ -1,0 +1,6 @@
+# DataNexus static dashboard image
+FROM nginx:1.27-alpine
+COPY 04-dashboard/DataNexus_Dashboard_Wired.html /usr/share/nginx/html/index.html
+COPY 04-dashboard/dashboard_static_demo.html /usr/share/nginx/html/demo.html
+EXPOSE 3000
+CMD ["nginx", "-g", "daemon off;"]

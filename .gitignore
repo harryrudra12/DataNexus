@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Node / React
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Generated reports
+*.pdf
+validation_audit_report.pdf
+datanexus_*_report_*.json
+datanexus_*_report_*.pdf
+
+# Backups
+*.backup
+*.before_*
+
+# OS / IDE
+.DS_Store
+Thumbs.db

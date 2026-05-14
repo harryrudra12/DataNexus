@@ -1,0 +1,9 @@
+services:
+  datanexus-react-ui:
+    build:
+      context: ./04-dashboard-react
+      dockerfile: Dockerfile
+    ports:
+      - "13001:80"
+    environment:
+      VITE_API_URL: http://localhost:18000

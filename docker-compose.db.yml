@@ -1,0 +1,27 @@
+services:
+  datanexus-db:
+    image: postgres:15
+    container_name: datanexus-db
+    environment:
+      POSTGRES_USER: datanexus
+      POSTGRES_PASSWORD: datanexus
+      POSTGRES_DB: datanexus
+    ports:
+      - "15432:5432"
+    volumes:
+      - datanexus_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datanexus -d datanexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  datanexus-api:
+    environment:
+      DATABASE_URL: postgresql://datanexus:datanexus@datanexus-db:5432/datanexus
+    depends_on:
+      datanexus-db:
+        condition: service_healthy
+
+volumes:
+  datanexus_db_data:

@@ -1,0 +1,29 @@
+services:
+  datanexus-api:
+    build:
+      context: ./03-api-service
+      dockerfile: Dockerfile
+    ports:
+      - "18000:8000"
+    environment:
+      KAFKA_BROKERS: ""
+      HDFS_NAMENODE: ""
+      PRESTO_HOST: ""
+      ATLAS_HOST: ""
+      FABRIC_PEER: ""
+      IPFS_API: ""
+      MLFLOW_URI: ""
+      AIRFLOW_API: ""
+    volumes:
+      - ./01-platform-modules:/app/era3:ro
+
+  datanexus-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "13000:80"
+    environment:
+      REACT_APP_API_URL: http://localhost:18000
+    depends_on:
+      - datanexus-api
