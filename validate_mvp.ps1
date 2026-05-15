@@ -33,6 +33,7 @@ $checks += Test-Endpoint "Audit API" "http://localhost:18000/api/v1/dashboard/au
 $checks += Test-Endpoint "Compliance API" "http://localhost:18000/api/v1/dashboard/compliance/summary"
 $checks += Test-Endpoint "Demo Validation API" "http://localhost:18000/api/v1/dashboard/demo/validation"
 $checks += Test-Endpoint "Demo Health Check API" "http://localhost:18000/api/v1/dashboard/demo/health-check"
+$checks += Test-Endpoint "Pipeline Runs API" "http://localhost:18000/api/v1/dashboard/pipeline-runs/recent"
 
 Write-Host ""
 Write-Host "Testing Audit PDF download..."
@@ -102,3 +103,4 @@ Write-Host "Useful URLs:"
 Write-Host "React Dashboard : http://localhost:13001"
 Write-Host "FastAPI Swagger : http://localhost:18000/docs"
 Write-Host "Legacy UI       : http://localhost:13000"
+

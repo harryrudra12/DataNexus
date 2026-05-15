@@ -288,6 +288,8 @@ function CreatePipelineForm({
 function Pipelines({
   pipelines,
   onRunPipeline,
+  onExecutePipelineWithLogs,
+  executingRealRun,
   runningPipelineId,
   form,
   setForm,
@@ -336,18 +338,35 @@ function Pipelines({
                 Fabric TX: {safeText(p.fabric)}
               </div>
 
-              <button
-                onClick={() => onRunPipeline(p.id)}
-                disabled={runningPipelineId === p.id}
-                style={{
-                  ...primaryButtonStyle,
-                  marginTop: 16,
-                  opacity: runningPipelineId === p.id ? 0.65 : 1,
-                  cursor: runningPipelineId === p.id ? "not-allowed" : "pointer",
-                }}
-              >
-                {runningPipelineId === p.id ? "Running..." : "Run Now"}
-              </button>
+              <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => onRunPipeline(p.id)}
+                  disabled={runningPipelineId === p.id}
+                  style={{
+                    ...primaryButtonStyle,
+                    opacity: runningPipelineId === p.id ? 0.65 : 1,
+                    cursor: runningPipelineId === p.id ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {runningPipelineId === p.id ? "Running..." : "Run Now"}
+                </button>
+
+                <button
+                  onClick={() =>
+                    onExecutePipelineWithLogs &&
+                    onExecutePipelineWithLogs(p.id)
+                  }
+                  disabled={executingRealRun}
+                  style={{
+                    ...primaryButtonStyle,
+                    background: "var(--purple)",
+                    opacity: executingRealRun ? 0.65 : 1,
+                    cursor: executingRealRun ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {executingRealRun ? "Executing..." : "Execute With Logs"}
+                </button>
+              </div>
             </div>
 
             <div
@@ -488,6 +507,170 @@ function Audit({ events, onExportReport, onExportPdfReport, exportingReport }) {
 
 
 
+
+function Runs({ runs, onRefreshRuns, onExecuteFirstPipeline, onExportRunsJson, loadingRuns, executingRealRun }) {
+  const [expandedRunId, setExpandedRunId] = useState(null);
+
+  return (
+    <div className="page">
+      <div className="label">Pipeline execution engine</div>
+      <h2 style={{ marginTop: 6 }}>Run history and execution logs</h2>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+        <button
+          onClick={onRefreshRuns}
+          disabled={loadingRuns}
+          style={{
+            ...primaryButtonStyle,
+            opacity: loadingRuns ? 0.65 : 1,
+            cursor: loadingRuns ? "not-allowed" : "pointer",
+          }}
+        >
+          {loadingRuns ? "Refreshing..." : "Refresh Runs"}
+        </button>
+
+        <button
+          onClick={onExecuteFirstPipeline}
+          disabled={executingRealRun}
+          style={{
+            ...primaryButtonStyle,
+            background: "var(--purple)",
+            opacity: executingRealRun ? 0.65 : 1,
+            cursor: executingRealRun ? "not-allowed" : "pointer",
+          }}
+        >
+          {executingRealRun ? "Executing..." : "Execute First Pipeline"}
+        </button>
+
+        <button
+          onClick={onExportRunsJson}
+          style={{
+            ...primaryButtonStyle,
+            background: "var(--green)",
+          }}
+        >
+          Export Runs JSON
+        </button>
+      </div>
+
+      <div className="grid kpi" style={{ marginBottom: 18 }}>
+        <KPICard label="Total runs" value={safeArray(runs).length} sub="execution records" />
+        <KPICard
+          label="Completed"
+          value={safeArray(runs).filter((r) => r.status === "completed").length}
+          sub="successful runs"
+          tone="var(--green)"
+        />
+        <KPICard
+          label="Latest TX"
+          value={safeArray(runs)[0]?.fabric_tx || "NA"}
+          sub="audit proof"
+          tone="var(--purple)"
+        />
+        <KPICard
+          label="Avg duration"
+          value={`${Math.round(
+            safeArray(runs).reduce((sum, r) => sum + safeNumber(r.duration_ms), 0) /
+              Math.max(safeArray(runs).length, 1)
+          )} ms`}
+          sub="execution speed"
+          tone="var(--amber)"
+        />
+      </div>
+
+      {runs.length === 0 && (
+        <div className="card">
+          <h3>No execution records yet</h3>
+          <div className="small">Click Execute First Pipeline to create a persistent run log.</div>
+        </div>
+      )}
+
+      <div className="grid two">
+        {runs.map((run) => {
+          const expanded = expandedRunId === run.run_id;
+
+          return (
+            <div className="card" key={run.run_id}>
+              <div className="label">{safeText(run.run_id)}</div>
+              <h3>{safeText(run.pipeline_name)}</h3>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
+                <span className="badge green">{safeText(run.status)}</span>
+                <span className="badge purple">{safeText(run.law)}</span>
+                <span className="badge green">{safeText(run.region)}</span>
+              </div>
+
+              <div className="small">
+                {safeText(run.source)} → {safeText(run.target)}
+              </div>
+
+              <div className="small" style={{ marginTop: 6 }}>
+                Duration: {safeNumber(run.duration_ms)} ms · TX: {safeText(run.fabric_tx)}
+              </div>
+
+              <button
+                onClick={() => setExpandedRunId(expanded ? null : run.run_id)}
+                style={{
+                  ...primaryButtonStyle,
+                  marginTop: 14,
+                  background: expanded ? "var(--amber)" : "var(--purple)",
+                }}
+              >
+                {expanded ? "Hide Details" : "View Details"}
+              </button>
+
+              {expanded && (
+                <div style={{ marginTop: 14 }}>
+                  <div className="label">Execution timeline</div>
+
+                  <div style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    margin: "10px 0 14px"
+                  }}>
+                    {safeArray(run.logs).map((log, idx) => (
+                      <div
+                        key={`${run.run_id}-timeline-${idx}`}
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 999,
+                          background: "rgba(5,150,105,0.10)",
+                          border: "1px solid rgba(5,150,105,0.18)",
+                          fontSize: 11,
+                          fontWeight: 800,
+                          color: "var(--green)",
+                        }}
+                      >
+                        {idx + 1}. {safeText(log.step)}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="label">Execution steps</div>
+
+                  {safeArray(run.logs).map((log, idx) => (
+                    <div
+                      key={`${run.run_id}-${idx}`}
+                      style={{
+                        padding: "10px 0",
+                        borderBottom: "1px solid var(--line)",
+                      }}
+                    >
+                      <strong>{safeText(log.step)}</strong>
+                      <div className="small">{safeText(log.message)}</div>
+                      <span className="badge green">{safeText(log.status)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 function SettingsPanel({ apiStatus, onTestApi, testingApi }) {
   return (
     <div className="page">
@@ -1013,6 +1196,9 @@ function App() {
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [apiStatus, setApiStatus] = useState(null);
   const [testingApi, setTestingApi] = useState(false);
+  const [pipelineRuns, setPipelineRuns] = useState([]);
+  const [loadingRuns, setLoadingRuns] = useState(false);
+  const [executingRealRun, setExecutingRealRun] = useState(false);
   const [fabric, setFabric] = useState(null);
   const [loadingFabric, setLoadingFabric] = useState(false);
 
@@ -1355,10 +1541,90 @@ function App() {
       setTestingApi(false);
     }
   };
+
+  const loadPipelineRuns = async () => {
+    try {
+      setLoadingRuns(true);
+      const result = await apiGet("/api/v1/dashboard/pipeline-runs/recent");
+      setPipelineRuns(safeArray(result.runs));
+    } catch (e) {
+      setError(e.message || "Loading pipeline runs failed");
+    } finally {
+      setLoadingRuns(false);
+    }
+  };
+
+  const executeFirstPipelineWithLogs = async () => {
+    try {
+      setExecutingRealRun(true);
+      setToast("");
+      setError("");
+
+      const firstPipeline = safeArray(live?.pipelines)[0];
+
+      if (!firstPipeline) {
+        setError("No pipeline available to execute");
+        return;
+      }
+
+      const result = await apiPost(`/api/v1/dashboard/pipelines/${firstPipeline.id}/execute-real`, {});
+
+      setToast(
+        `Execution completed · ${result.run.run_id} · ${result.run.fabric_tx}`
+      );
+
+      await refresh();
+      await loadPipelineRuns();
+
+      setTab("Runs");
+    } catch (e) {
+      setError(e.message || "Pipeline execution failed");
+    } finally {
+      setExecutingRealRun(false);
+    }
+  };
+
+  const executePipelineWithLogs = async (pipelineId) => {
+    try {
+      setExecutingRealRun(true);
+      setToast("");
+      setError("");
+
+      const result = await apiPost(`/api/v1/dashboard/pipelines/${pipelineId}/execute-real`, {});
+
+      setToast(`Execution completed · ${result.run.run_id} · ${result.run.fabric_tx}`);
+
+      await refresh();
+      await loadPipelineRuns();
+
+      setTab("Runs");
+    } catch (e) {
+      setError(e.message || "Pipeline execution failed");
+    } finally {
+      setExecutingRealRun(false);
+    }
+  };
+
+  const exportRunsJson = async () => {
+    try {
+      setToast("");
+      setError("");
+
+      const result = await apiGet("/api/v1/dashboard/pipeline-runs/recent?limit=100");
+      const stamp = new Date().toISOString().replaceAll(":", "-").slice(0, 19);
+
+      downloadJsonReport(`datanexus_pipeline_runs_${stamp}.json`, result);
+
+      setToast(`Pipeline runs JSON exported · ${result.count || 0} runs`);
+    } catch (e) {
+      setError(e.message || "Runs export failed");
+    }
+  };
   useEffect(() => {
     refresh();
     loadDemoValidation();
     loadFabricStatus();
+    loadPipelineRuns();
     const id = setInterval(refresh, 30000);
     return () => clearInterval(id);
   }, []);
@@ -1395,7 +1661,7 @@ function App() {
       )}
 
       <div className="tabs">
-        {["Overview", "Pipelines", "Fabric", "Audit", "Compliance", "Query", "Demo", "Settings"].map((t) => (
+        {["Overview", "Pipelines", "Runs", "Fabric", "Audit", "Compliance", "Query", "Demo", "Settings"].map((t) => (
           <button
             key={t}
             className={`tab ${tab === t ? "active" : ""}`}
@@ -1412,6 +1678,8 @@ function App() {
         <Pipelines
           pipelines={pipelines}
           onRunPipeline={runPipeline}
+          onExecutePipelineWithLogs={executePipelineWithLogs}
+          executingRealRun={executingRealRun}
           runningPipelineId={runningPipelineId}
           form={createForm}
           setForm={setCreateForm}
@@ -1421,6 +1689,17 @@ function App() {
       )}
 
 
+
+      {tab === "Runs" && (
+        <Runs
+          runs={pipelineRuns}
+          onRefreshRuns={loadPipelineRuns}
+          onExecuteFirstPipeline={executeFirstPipelineWithLogs}
+          onExportRunsJson={exportRunsJson}
+          loadingRuns={loadingRuns}
+          executingRealRun={executingRealRun}
+        />
+      )}
       {tab === "Fabric" && (
         <Fabric
           fabric={fabric}
@@ -1484,6 +1763,14 @@ function App() {
 }
 
 createRoot(document.getElementById("root")).render(<App />);
+
+
+
+
+
+
+
+
 
 
 
