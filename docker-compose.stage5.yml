@@ -1,0 +1,38 @@
+services:
+  datanexus-redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: datanexus-redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 512M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://datanexus-redpanda:9092
+    ports:
+      - "19092:9092"
+
+  datanexus-worker:
+    build:
+      context: ./10-execution/pipeline-worker
+      dockerfile: Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP: datanexus-redpanda:9092
+      POSTGRES_HOST: datanexus-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: datanexus
+      POSTGRES_USER: datanexus
+      POSTGRES_PASSWORD: datanexus
+    depends_on:
+      - datanexus-redpanda
+    restart: unless-stopped

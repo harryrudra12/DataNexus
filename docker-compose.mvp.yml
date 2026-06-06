@@ -6,7 +6,8 @@ services:
     ports:
       - "18000:8000"
     environment:
-      KAFKA_BROKERS: ""
+      KAFKA_BOOTSTRAP: datanexus-redpanda:9092
+      KAFKA_BROKERS: datanexus-redpanda:9092
       HDFS_NAMENODE: ""
       PRESTO_HOST: ""
       ATLAS_HOST: ""

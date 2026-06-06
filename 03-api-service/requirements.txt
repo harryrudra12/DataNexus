@@ -37,3 +37,5 @@ reportlab==4.2.5
 # redis==5.1.1             # Redis client
 # kafka-python==2.0.2      # Kafka client
 # pyhive[trino]==0.7.0     # Presto/Trino client
+
+confluent-kafka==2.6.1

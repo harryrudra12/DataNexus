@@ -38,7 +38,7 @@ from .routers import pipelines as pipelines_router
 from .routers import query as query_router
 from .routers import dashboard as dashboard_router
 from .routers import runs as runs_router
-from .routers import runs as runs_router
+from .routers import kafka_runs as kafka_runs_router
 
 
 settings = get_settings()
@@ -294,7 +294,7 @@ app.include_router(query_router.router)
 app.include_router(intent_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(runs_router.router)
-app.include_router(runs_router.router)
+app.include_router(kafka_runs_router.router)
 
 
 # ─── UI-friendly root/status endpoints ───────────────────────
@@ -343,4 +343,5 @@ async def api_v1_status() -> dict:
         "environment": settings.app_env,
         "fabric_mode": settings.fabric_mode,
     }
+
 
