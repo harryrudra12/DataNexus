@@ -167,7 +167,7 @@ def test_worker_persists_run_and_audit_event(monkeypatch, worker_module, pipelin
     assert len(executions) == 2
     run_statement, run_params = executions[0]
     assert "ON CONFLICT (run_id) DO UPDATE" in run_statement
-    assert run_params[:11] == (
+    assert run_params[:10] == (
         "RUN_123",
         "pl-test",
         "customer_events",
@@ -179,7 +179,7 @@ def test_worker_persists_run_and_audit_event(monkeypatch, worker_module, pipelin
         "DPDP",
         "TX_456",
     )
-    assert run_params[11].adapted == logs
+    assert run_params[10].adapted == logs
 
     audit_statement, audit_params = executions[1]
     assert "INSERT INTO dashboard_audit_events" in audit_statement
