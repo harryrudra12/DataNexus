@@ -37,7 +37,6 @@ from .routers import lineage as lineage_router
 from .routers import pipelines as pipelines_router
 from .routers import query as query_router
 from .routers import dashboard as dashboard_router
-from .routers import runs as runs_router
 from .routers import kafka_runs as kafka_runs_router
 
 
@@ -293,7 +292,6 @@ app.include_router(audit_router.router)
 app.include_router(query_router.router)
 app.include_router(intent_router.router)
 app.include_router(dashboard_router.router)
-app.include_router(runs_router.router)
 app.include_router(kafka_runs_router.router)
 
 
