@@ -35,46 +35,15 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.types import StringType
 
+from pii_masking import (
+    mask_aadhaar,
+    mask_email,
+    mask_name,
+    mask_phone,
+    sigma_from_pass_rate,
+)
 
 # ─── PII MASKING UDFs ─────────────────────────────────────────
-def mask_aadhaar(value):
-    """Mask Aadhaar: keep last 4 digits, replace rest with X."""
-    if value is None or len(str(value)) < 4:
-        return None
-    s = str(value).replace(" ", "").replace("-", "")
-    if len(s) != 12 or not s.isdigit():
-        return "INVALID_AADHAAR"
-    return "XXXX-XXXX-" + s[-4:]
-
-
-def mask_phone(value):
-    """Mask phone: keep last 4 digits, replace rest with X."""
-    if value is None:
-        return None
-    s = str(value).replace("+", "").replace("-", "").replace(" ", "")
-    if len(s) < 8:
-        return "INVALID_PHONE"
-    return "X" * (len(s) - 4) + s[-4:]
-
-
-def mask_email(value):
-    """Mask email: keep first letter and domain. ravi@apollo.com → r***@apollo.com"""
-    if value is None or "@" not in str(value):
-        return None
-    local, domain = str(value).split("@", 1)
-    if len(local) <= 1:
-        return "*@" + domain
-    return local[0] + "***@" + domain
-
-
-def mask_name(value):
-    """Mask name: keep initials only. 'Ravi Kumar Sharma' → 'R. K. S.'"""
-    if value is None:
-        return None
-    parts = str(value).split()
-    return ". ".join(p[0].upper() for p in parts if p) + "."
-
-
 mask_aadhaar_udf = udf(mask_aadhaar, StringType())
 mask_phone_udf   = udf(mask_phone,   StringType())
 mask_email_udf   = udf(mask_email,   StringType())
@@ -145,16 +114,7 @@ class QualityCheck:
             return 0.0
         passed = sum(1 for r in self.results if r["passed"])
         pass_rate = passed / len(self.results)
-        # DPMO = (1 - pass_rate) * 1_000_000
-        # Sigma table approximation
-        if pass_rate >= 0.99999966: return 6.0
-        if pass_rate >= 0.99999:    return 5.5
-        if pass_rate >= 0.99977:    return 5.0
-        if pass_rate >= 0.99865:    return 4.5
-        if pass_rate >= 0.99379:    return 4.0
-        if pass_rate >= 0.97725:    return 3.5
-        if pass_rate >= 0.93319:    return 3.0
-        return 2.0
+        return sigma_from_pass_rate(pass_rate)
 
     def report(self) -> dict:
         return {
