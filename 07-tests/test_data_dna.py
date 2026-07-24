@@ -3,6 +3,7 @@ DataNexus Era 3 — Data DNA tests
 Verifies cryptographic genome, border autonomy, integrity verification.
 """
 import pytest
+import dna.data_dna as data_dna
 from dna.data_dna import (
     DataDNAFactory, DataClassification, LegalJurisdiction,
 )
@@ -110,29 +111,60 @@ class TestBorderAutonomy:
 
 
 class TestAccessControl:
-    def test_owner_access_allowed(self, sample_patient_data):
-        dna = DataDNAFactory.create(
+    def _make_dna(self, raw_data):
+        return DataDNAFactory.create(
             dataset_name="patient", creator_id="apollo_hyd",
-            raw_data=sample_patient_data, parent_ids=[],
+            raw_data=raw_data, parent_ids=[],
             transformation="ingest", pipeline_id="p1",
             sigma_level=5.9,
             classification=DataClassification.HEALTH,
             jurisdictions=[LegalJurisdiction.INDIA_DPDP],
             allowed_regions=["IN"], consent_purpose="medical_treatment",
         )
+
+    def test_owner_access_allowed(self, sample_patient_data):
+        dna = self._make_dna(sample_patient_data)
         allowed, _ = dna.can_access("apollo_hyd", "medical_treatment")
         assert allowed is True
 
     def test_purpose_mismatch_blocked(self, sample_patient_data):
-        dna = DataDNAFactory.create(
-            dataset_name="patient", creator_id="apollo_hyd",
-            raw_data=sample_patient_data, parent_ids=[],
-            transformation="ingest", pipeline_id="p1",
-            sigma_level=5.9,
-            classification=DataClassification.HEALTH,
-            jurisdictions=[LegalJurisdiction.INDIA_DPDP],
-            allowed_regions=["IN"], consent_purpose="medical_treatment",
-        )
+        dna = self._make_dna(sample_patient_data)
         allowed, reason = dna.can_access("pharma_corp", "drug_marketing")
         assert allowed is False
         assert "purpose" in reason.lower() or "consent" in reason.lower()
+
+    def test_non_owner_with_valid_consent_is_allowed(
+        self, sample_patient_data, monkeypatch
+    ):
+        dna = self._make_dna(sample_patient_data)
+        dna.consent.expires_at = 1_001.0
+        monkeypatch.setattr(data_dna.time, "time", lambda: 1_000.0)
+
+        allowed, reason = dna.can_access("researcher_iit", "medical_treatment")
+
+        assert allowed is True
+        assert reason == "ALLOWED: valid consent"
+
+    def test_non_owner_with_expired_consent_is_blocked(
+        self, sample_patient_data, monkeypatch
+    ):
+        dna = self._make_dna(sample_patient_data)
+        dna.consent.expires_at = 999.0
+        monkeypatch.setattr(data_dna.time, "time", lambda: 1_000.0)
+
+        allowed, reason = dna.can_access("researcher_iit", "medical_treatment")
+
+        assert allowed is False
+        assert reason == "BLOCKED: consent has expired"
+
+    def test_consent_remains_valid_at_exact_expiry_boundary(
+        self, sample_patient_data, monkeypatch
+    ):
+        dna = self._make_dna(sample_patient_data)
+        dna.consent.expires_at = 1_000.0
+        monkeypatch.setattr(data_dna.time, "time", lambda: 1_000.0)
+
+        allowed, reason = dna.can_access("researcher_iit", "medical_treatment")
+
+        assert allowed is True
+        assert reason == "ALLOWED: valid consent"
