@@ -21,6 +21,27 @@ class TestLivingNodes:
         assert node.is_online
         assert node.region == "IN-TG"
 
+    @pytest.mark.asyncio
+    async def test_node_quarantines_low_quality_data_without_storing_it(self):
+        from nodes.living_node import DataNexusNode, NodeType, NodeCapability
+
+        node = DataNexusNode(
+            node_type=NodeType.EDGE_HOSPITAL,
+            capability=NodeCapability(4, 8192, 100_000),
+            region="IN-TG",
+            fabric_peers=["dn-hyderabad-01"],
+        )
+
+        result = await node.ingest(
+            source_id="untrusted-medical-device",
+            raw_data=b",,",
+            topic="datanexus.health.vitals",
+        )
+
+        assert result.startswith("QUARANTINED:")
+        assert node.data_store == {}
+        assert node.sigma_scores == {}
+
     def test_node_status_reports(self, sample_patient_data):
         from nodes.living_node import DataNexusNode, NodeType, NodeCapability
         node = DataNexusNode(
