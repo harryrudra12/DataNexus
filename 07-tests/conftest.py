@@ -9,8 +9,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 MODULE_ROOT = PROJECT_ROOT / "01-platform-modules"
 API_ROOT = PROJECT_ROOT / "03-api-service"
+FABRIC_CLIENT_ROOT = PROJECT_ROOT / "02-blockchain-chaincode" / "client"
 sys.path.insert(0, str(MODULE_ROOT))
 sys.path.insert(0, str(API_ROOT))
+sys.path.insert(0, str(FABRIC_CLIENT_ROOT))
 
 import pytest
 
